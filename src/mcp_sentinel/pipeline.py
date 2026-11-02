@@ -1,0 +1,244 @@
+"""The daily run: discover, check commits, extract what changed, score, publish.
+
+A repository is cloned only when its default-branch commit differs from the previous run
+or the extractor itself has changed. Everything the next run needs lives in the output
+directory, which the workflow stores on the ``data`` branch.
+"""
+
+from __future__ import annotations
+
+import gzip
+import io
+import json
+import shutil
+from collections import Counter, defaultdict
+from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import Any
+
+from . import fetch
+from .extract import extract_repo
+from .fetch import FetchError
+from .models import ParamText, Server, Tool
+from .redact import redact
+from .scoring import score_tools, tool_from_row
+
+# Bump whenever a change to extraction could change its output, so cached repos rescan.
+EXTRACTOR_VERSION = "1"
+FLAGGED = ("medium", "high")
+
+
+@dataclass(frozen=True)
+class Sources:
+    remote_head: Callable[[str], str] = fetch.remote_head
+    clone: Callable[[str, Path], tuple[Path, str]] = fetch.clone
+
+
+@dataclass(frozen=True)
+class Job:
+    key: str
+    server_name: str
+    repo_url: str | None
+    subfolder: str | None
+
+
+# Files
+
+
+def write_gz_jsonl(path: Path, records: Iterable[dict]) -> None:
+    """Gzip with a fixed timestamp so identical data gives identical bytes."""
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as gz:
+        for record in records:
+            line = json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n"
+            gz.write(line.encode("utf-8"))
+    path.write_bytes(buf.getvalue())
+
+
+def read_gz_jsonl(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        return [json.loads(line) for line in fh if line.strip()]
+
+
+def write_json(path: Path, data: Any) -> None:
+    path.write_text(json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+
+
+def _read_json(path: Path) -> dict:
+    return json.loads(path.read_text()) if path.exists() else {}
+
+
+# Steps
+
+
+def _jobs(servers: list[Server]) -> list[Job]:
+    return sorted(
+        (Job(s.name, s.name, s.repo_url, s.subfolder) for s in servers), key=lambda j: j.key
+    )
+
+
+def _redacted(tool: Tool) -> Tool:
+    params = [ParamText(p.name, redact(p.text)) for p in tool.params]
+    return replace(tool, description=redact(tool.description), params=params)
+
+
+def _flag_ids(findings: list[dict]) -> set[str]:
+    return {
+        f"{r['server_name']}|{r['path']}|{r['name']}" for r in findings if r["level"] in FLAGGED
+    }
+
+
+def _share(tools: list[Tool]) -> float | None:
+    return round(sum(t.description_resolved for t in tools) / len(tools), 4) if tools else None
+
+
+def run_pipeline(
+    servers: list[Server],
+    *,
+    previous: Path | None,
+    out: Path,
+    cache: Path,
+    now: str,
+    model: Any = None,
+    sources: Sources | None = None,
+    workers: int = 8,
+) -> dict:
+    sources = sources or Sources()
+    prev_dir = previous if previous is not None and Path(previous).is_dir() else None
+    prev_state = _read_json(prev_dir / "state.json") if prev_dir else {}
+    prev_jobs = prev_state.get("jobs", {})
+    same_extractor = prev_state.get("extractor_version") == EXTRACTOR_VERSION
+    prev_tools: dict[str, list[dict]] = defaultdict(list)
+    for row in read_gz_jsonl(prev_dir / "tools.jsonl.gz") if prev_dir else []:
+        prev_tools[row["server_name"]].append(row)
+
+    jobs = _jobs(servers)
+    urls = sorted({j.repo_url for j in jobs if j.repo_url})
+
+    def head(url: str) -> tuple[str, str | None, str | None]:
+        try:
+            return url, sources.remote_head(url), None
+        except FetchError as exc:
+            return url, None, str(exc)
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        heads = {url: (sha, err) for url, sha, err in pool.map(head, urls)}
+
+    def reusable(job: Job) -> bool:
+        prev = prev_jobs.get(job.key)
+        sha = heads.get(job.repo_url, (None, None))[0]
+        return bool(
+            same_extractor
+            and prev
+            and prev.get("status") in ("ok", "no_supported_source")
+            and prev.get("commit") == sha
+            and prev.get("subfolder") == job.subfolder
+            and prev.get("repo_url") == job.repo_url
+        )
+
+    to_extract: dict[str, list[Job]] = defaultdict(list)
+    for job in jobs:
+        if job.repo_url and heads[job.repo_url][0] and not reusable(job):
+            to_extract[job.repo_url].append(job)
+
+    def work(url: str) -> list[tuple[Job, dict, list[Tool]]]:
+        try:
+            path, commit = sources.clone(url, cache)
+        except FetchError as exc:
+            return [(j, {"status": "clone_failed", "error": str(exc)}, []) for j in to_extract[url]]
+        results = []
+        try:
+            for j in to_extract[url]:
+                ex = extract_repo(
+                    path,
+                    repo_url=url,
+                    commit=commit,
+                    subfolder=j.subfolder,
+                    server_name=j.server_name,
+                )
+                status = "ok" if ex.files_scanned else "no_supported_source"
+                info = {"status": status, "commit": commit, "files_scanned": ex.files_scanned}
+                results.append((j, info, ex.tools))
+        finally:
+            if Path(path).resolve().is_relative_to(Path(cache).resolve()):
+                shutil.rmtree(path, ignore_errors=True)  # keep runner disk usage flat
+        return results
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        batches = list(pool.map(work, sorted(to_extract)))
+    fresh = {j.key: (info, tools) for batch in batches for j, info, tools in batch}
+
+    state_jobs: dict[str, dict] = {}
+    all_tools: list[Tool] = []
+    reused = 0
+    for job in jobs:
+        base = {"repo_url": job.repo_url, "subfolder": job.subfolder}
+        if job.repo_url is None:
+            state_jobs[job.key] = {**base, "status": "no_repo", "tools": 0}
+            continue
+        sha, err = heads[job.repo_url]
+        if job.key in fresh:
+            info, tools = fresh[job.key]
+            tools = [_redacted(t) for t in tools]
+        elif sha and reusable(job):
+            reused += 1
+            kept = ("status", "commit", "files_scanned")
+            info = {k: v for k, v in prev_jobs[job.key].items() if k in kept}
+            tools = [tool_from_row(r) for r in prev_tools.get(job.key, [])]
+        elif job.key in prev_jobs and prev_jobs[job.key].get("status") in ("ok", "stale"):
+            info = {"status": "stale", "commit": prev_jobs[job.key].get("commit"), "error": err}
+            tools = [tool_from_row(r) for r in prev_tools.get(job.key, [])]
+        else:
+            info, tools = {"status": "unreachable", "error": err}, []
+        state_jobs[job.key] = {**base, **info, "tools": len(tools)}
+        all_tools.extend(tools)
+
+    all_tools.sort(key=lambda t: (t.server_name or "", *t.sort_key()))
+    findings = score_tools(all_tools, model)
+    prev_findings = read_gz_jsonl(prev_dir / "findings.jsonl.gz") if prev_dir else []
+    now_flags, then_flags = _flag_ids(findings), _flag_ids(prev_findings)
+
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    write_gz_jsonl(
+        out / "servers.jsonl.gz", (s.to_dict() for s in sorted(servers, key=lambda s: s.name))
+    )
+    write_gz_jsonl(out / "tools.jsonl.gz", (t.to_dict() for t in all_tools))
+    write_gz_jsonl(out / "findings.jsonl.gz", findings)
+    write_json(out / "state.json", {"extractor_version": EXTRACTOR_VERSION, "jobs": state_jobs})
+
+    levels = Counter(r["level"] for r in findings)
+    summary = {
+        "generated_at": now,
+        "extractor_version": EXTRACTOR_VERSION,
+        "model_version": getattr(model, "version", None),
+        "servers": len(servers),
+        "servers_with_repo": sum(1 for s in servers if s.repo_url),
+        "jobs": dict(sorted(Counter(j["status"] for j in state_jobs.values()).items())),
+        "repos_checked": len(urls),
+        "repos_cloned": len(to_extract),
+        "jobs_reused": reused,
+        "tools": len(all_tools),
+        "resolved_share": _share(all_tools),
+        "levels": {k: levels[k] for k in ("high", "medium", "low", "none")},
+        "new_flags": sorted(now_flags - then_flags) if prev_dir else [],
+        "cleared_flags": sorted(then_flags - now_flags) if prev_dir else [],
+    }
+    write_json(out / "summary.json", summary)
+
+    history_file = prev_dir / "history.jsonl" if prev_dir else None
+    history = (
+        history_file.read_text().splitlines() if history_file and history_file.exists() else []
+    )
+    entry = {k: v for k, v in summary.items() if k not in ("new_flags", "cleared_flags")}
+    entry |= {
+        "new_flags": len(summary["new_flags"]),
+        "cleared_flags": len(summary["cleared_flags"]),
+    }
+    history.append(json.dumps(entry, sort_keys=True))
+    (out / "history.jsonl").write_text("\n".join(history) + "\n")
+    return summary

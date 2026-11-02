@@ -55,6 +55,8 @@ A scheduled GitHub Actions workflow discovers new and updated servers, rescans o
 Exit criteria
 - Two consecutive scheduled runs succeed, and the second run reuses cached results for unchanged repositories.
 
+Status. Built and verified locally on the forty benchmark repositories. The first run cloned all forty in 46 seconds, and the second cloned none, reused every result and produced byte-identical files in 9 seconds. The criterion is fully met once two runs have succeeded in GitHub Actions against the live registry.
+
 ## Phase 5. Public site
 
 A static site on GitHub Pages offers search, a page per server with flagged evidence, trend charts and a methodology page with a dispute link.

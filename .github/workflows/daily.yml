@@ -1,0 +1,69 @@
+name: daily-scan
+
+on:
+  schedule:
+    - cron: "17 11 * * *"  # 11:17 UTC, about 3 or 4 in the morning in California
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Only scan the first N servers (empty means all)"
+        required: false
+  push:
+    branches: [main]
+    paths: [".github/workflows/daily.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[ml]"
+
+      - name: Fetch the previous snapshot from the data branch
+        run: |
+          if git ls-remote --exit-code --heads origin data >/dev/null; then
+            git fetch --depth 1 origin data
+            mkdir previous
+            git archive origin/data | tar -x -C previous
+          fi
+
+      - name: Run the pipeline
+        env:
+          LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          LIMIT_ARG=""
+          if [ -n "$LIMIT" ]; then
+            [[ "$LIMIT" =~ ^[0-9]+$ ]] || { echo "limit must be a number"; exit 1; }
+            LIMIT_ARG="--limit $LIMIT"
+          fi
+          PREV_ARG=""
+          if [ -d previous ]; then PREV_ARG="--previous previous"; fi
+          mcp-sentinel pipeline $PREV_ARG --out out --model models/sentinel-lr-1.pkl --workers 16 $LIMIT_ARG
+          cat out/summary.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the snapshot to the data branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd out
+          git init -q -b data
+          git config user.name "Rohit Durbha"
+          git config user.email "rohitdurbha@gmail.com"
+          git add -A
+          git commit -q -m "Data snapshot $(jq -r .generated_at summary.json)"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data

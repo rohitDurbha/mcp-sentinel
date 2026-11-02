@@ -15,6 +15,7 @@ mcp-sentinel extract --servers data/servers.jsonl --out data/tools.jsonl
 mcp-sentinel extract --repo https://github.com/OWNER/REPO --out data/tools.jsonl
 mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl --model models/sentinel-lr-1.pkl
 python research/train_eval.py --tools data/bench_tools.jsonl data/attack_tools.jsonl   # retrain and re-evaluate
+mcp-sentinel pipeline --previous previous --out out --model models/sentinel-lr-1.pkl  # the daily run
 ```
 
 ## Layout
@@ -29,6 +30,9 @@ src/mcp_sentinel/
   synth.py         synthetic poisoned and benign variants for training
   dataset.py       hand labels applied to extracted tools
   model.py         TF-IDF plus rule-feature classifier and explanations
+  scoring.py       rules plus model into one record per tool
+  redact.py        removes credential-looking strings before publication
+  pipeline.py      daily run with commit-based caching and snapshot output
   cli.py           argparse entry point
 tests/             pytest suite, fixtures live in tests/fixtures
 research/          training and evaluation script for the classifier
@@ -49,6 +53,8 @@ docs/PLAN.md       phases, scope and exit criteria
 - Each new extractor pattern or risk signal starts with a fixture and a failing test before the implementation is written.
 - Every risk flag must carry the exact evidence text and its location, because an unexplained score is not useful to anyone.
 - Output files are deterministic for a given input, with records sorted by stable keys so that daily diffs stay meaningful.
+- Any change that could alter extraction output must bump `EXTRACTOR_VERSION` in `pipeline.py`, so cached repositories are rescanned.
+- The daily workflow keeps its snapshot on the `data` branch as one force-pushed commit, so main never fills with data.
 - New dependencies need a one-line justification in the pull request, and the default answer is to use the standard library.
 - Code stays in small plain modules with type hints and dataclasses, and abstractions appear only after a second real use.
 - A phase counts as done only after its exit criteria in `docs/PLAN.md` pass on real repositories with the output shown.

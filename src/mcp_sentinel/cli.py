@@ -1,4 +1,4 @@
-"""Command line entry point: ``discover``, ``extract`` and ``scan``."""
+"""Command line entry point: ``discover``, ``extract``, ``scan`` and ``pipeline``."""
 
 from __future__ import annotations
 
@@ -12,8 +12,7 @@ from pathlib import Path
 from . import registry
 from .extract import extract_repo
 from .fetch import FetchError, clone, normalize_repo_url
-from .models import ParamText, Tool
-from .signals import level, scan_tool, score
+from .scoring import score_tools, tool_from_row
 from .store import read_jsonl, write_jsonl
 
 
@@ -118,57 +117,58 @@ def _summary(report: list[dict], tools: list) -> None:
             print(f"  {pattern:<20} {n}")
 
 
-def _tool_from_row(row: dict) -> Tool:
-    params = [ParamText(p["name"], p["text"]) for p in row.get("params") or []]
-    return Tool(**{**row, "params": params})
-
-
-def final_level(rule_level: str, model_flag: bool) -> str:
-    """Rules decide the level, and a model flag lifts anything below medium to medium."""
-    if model_flag and rule_level in ("none", "low"):
-        return "medium"
-    return rule_level
-
-
 def cmd_scan(args: argparse.Namespace) -> int:
-    tools = [_tool_from_row(row) for row in read_jsonl(args.tools)]
-    model_scores = None
+    tools = [tool_from_row(row) for row in read_jsonl(args.tools)]
+    model = None
     if args.model:
-        from .model import SentinelModel, tool_text
+        from .model import SentinelModel
 
         model = SentinelModel.load(args.model)
-        texts = [tool_text(t) for t in tools]
-        model_scores = model.decision(texts) if texts else []
-    results = []
-    for i, tool in enumerate(tools):
-        findings = scan_tool(tool)
-        value = score(findings)
-        record = {
-            "repo_url": tool.repo_url,
-            "commit": tool.commit,
-            "path": tool.path,
-            "line": tool.line,
-            "name": tool.name,
-            "server_name": tool.server_name,
-            "rule_score": value,
-            "rule_level": level(value),
-            "findings": [f.to_dict() for f in findings],
-        }
-        flag = False
-        if model_scores is not None:
-            m = round(float(model_scores[i]), 4)
-            flag = m >= model.threshold
-            record["model"] = {"version": model.version, "score": m, "flag": flag}
-            if flag:
-                record["model"]["top_terms"] = model.top_terms(texts[i])
-        record["level"] = final_level(record["rule_level"], flag)
-        results.append(record)
+    results = score_tools(tools, model)
     write_jsonl(args.out, results)
     levels = Counter(r["level"] for r in results)
     print(
         f"tools: {len(results)}  "
         + "  ".join(f"{k}: {levels[k]}" for k in ("high", "medium", "low", "none"))
     )
+    return 0
+
+
+def cmd_pipeline(args: argparse.Namespace) -> int:
+    import json
+    from datetime import UTC, datetime
+
+    from .models import Server
+    from .pipeline import run_pipeline
+
+    if args.servers:
+        rows = list(read_jsonl(args.servers))
+        servers = [
+            Server(**{**r, "package_types": tuple(r.get("package_types", ()))}) for r in rows
+        ]
+    else:
+        with registry.make_client(args.base_url) as client:
+            servers = list(registry.iter_servers(client))
+    if args.limit:
+        servers = sorted(servers, key=lambda s: s.name)[: args.limit]
+    model = None
+    if args.model:
+        from .model import SentinelModel
+
+        model = SentinelModel.load(args.model)
+    now = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    summary = run_pipeline(
+        servers,
+        previous=args.previous,
+        out=args.out,
+        cache=args.cache,
+        now=now,
+        model=model,
+        workers=args.workers,
+    )
+    brief = {k: v for k, v in summary.items() if k not in ("new_flags", "cleared_flags")}
+    print(json.dumps(brief, indent=2))
+    print(f"new flags: {len(summary['new_flags'])}  cleared: {len(summary['cleared_flags'])}")
     return 0
 
 
@@ -197,6 +197,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=Path("data/findings.jsonl"))
     p.add_argument("--model", type=Path, help="classifier file, e.g. models/sentinel-lr-1.pkl")
     p.set_defaults(func=cmd_scan)
+
+    p = sub.add_parser("pipeline", help="daily run with commit-based caching")
+    p.add_argument("--previous", type=Path, help="output directory of the previous run")
+    p.add_argument("--out", type=Path, default=Path("out"))
+    p.add_argument("--servers", type=Path, help="use this servers.jsonl instead of the registry")
+    p.add_argument("--base-url", default=registry.DEFAULT_BASE_URL)
+    p.add_argument("--model", type=Path, help="classifier file, e.g. models/sentinel-lr-1.pkl")
+    p.add_argument("--cache", type=Path, default=Path(".cache/pipeline"))
+    p.add_argument("--workers", type=int, default=16)
+    p.add_argument("--limit", type=int, help="process only the first N servers by name")
+    p.set_defaults(func=cmd_pipeline)
 
     args = parser.parse_args(argv)
     if args.command == "extract" and not (args.servers or args.repo):

@@ -19,7 +19,11 @@ pytest
 
 ## Status
 
-The project is being built in phases, and `docs/PLAN.md` lists each phase with the checks it must pass before the next one starts. Discovery, extraction, the rule-based signals and the classifier are working today, and the daily pipeline and public site come next. The model card in `docs/model_card.md` explains how the classifier was trained and tested, including where it still falls short.
+The project is being built in phases, and `docs/PLAN.md` lists each phase with the checks it must pass before the next one starts. Discovery, extraction, the rule-based signals, the classifier and the daily pipeline are working today, and the public site comes next. The model card in `docs/model_card.md` explains how the classifier was trained and tested, including where it still falls short.
+
+## Daily data
+
+A GitHub Actions workflow runs every morning and saves its results on the `data` branch of this repository. Each run checks the latest commit of every linked repository and only clones the ones that changed, so a typical day finishes quickly. The branch holds the server list, every extracted tool, every finding with its evidence, a summary of the run and a history file with one line per day. Credential-looking strings are removed before anything is saved, and the files are compressed JSON Lines that any data tool can read.
 
 ## A note on scores
 

@@ -93,3 +93,17 @@ def clone(url: str, cache_dir: Path) -> tuple[Path, str]:
             shutil.rmtree(dest, ignore_errors=True)
             raise FetchError(str(exc)) from exc
     return dest, _git("rev-parse", "HEAD", cwd=dest)
+
+
+def remote_head(url: str) -> str:
+    """Commit SHA of the remote default branch, without cloning anything."""
+    if normalize_repo_url(url) is None:
+        raise FetchError(f"refusing to contact {url!r}")
+    try:
+        out = _git("ls-remote", url, "HEAD")
+    except subprocess.TimeoutExpired as exc:
+        raise FetchError("ls-remote timed out") from exc
+    sha = out.split()[0] if out else ""
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise FetchError("no HEAD on remote")
+    return sha
