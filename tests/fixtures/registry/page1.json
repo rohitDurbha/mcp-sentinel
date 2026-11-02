@@ -1,0 +1,11 @@
+{"servers": [
+  {"server": {"name": "io.github.acme/weather", "description": "Weather data", "version": "1.2.0",
+     "repository": {"url": "https://github.com/acme/weather", "source": "github"},
+     "packages": [{"registryType": "npm", "identifier": "@acme/weather", "transport": {"type": "stdio"}}]},
+   "_meta": {"io.modelcontextprotocol.registry/official": {"status": "active", "updatedAt": "2026-10-01T00:00:00Z", "isLatest": true}}},
+  {"server": {"name": "io.github.acme/mono-a", "description": "Monorepo server", "version": "0.1.0",
+     "repository": {"url": "https://github.com/acme/mono", "source": "github", "subfolder": "servers/a"},
+     "remotes": [{"type": "streamable-http", "url": "https://a.example.com/mcp"}]},
+   "_meta": {"io.modelcontextprotocol.registry/official": {"status": "active", "updatedAt": "2026-10-02T00:00:00Z"}}}
+ ],
+ "metadata": {"nextCursor": "abc", "count": 2}}

@@ -1,0 +1,9 @@
+{"servers": [
+  {"server": {"name": "com.example/remote-only", "description": "No repo", "version": "2.0.0",
+     "remotes": [{"type": "sse", "url": "https://x.example.com/sse"}]},
+   "_meta": {"io.modelcontextprotocol.registry/official": {"status": "active", "updatedAt": "2026-10-03T00:00:00Z"}}},
+  {"server": {"name": "io.github.old/gone", "description": "Deleted", "version": "1.0.0",
+     "repository": {"url": "https://github.com/old/gone", "source": "github"}},
+   "_meta": {"io.modelcontextprotocol.registry/official": {"status": "deleted"}}}
+ ],
+ "metadata": {"nextCursor": "", "count": 2}}
