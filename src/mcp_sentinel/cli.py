@@ -123,25 +123,46 @@ def _tool_from_row(row: dict) -> Tool:
     return Tool(**{**row, "params": params})
 
 
+def final_level(rule_level: str, model_flag: bool) -> str:
+    """Rules decide the level, and a model flag lifts anything below medium to medium."""
+    if model_flag and rule_level in ("none", "low"):
+        return "medium"
+    return rule_level
+
+
 def cmd_scan(args: argparse.Namespace) -> int:
+    tools = [_tool_from_row(row) for row in read_jsonl(args.tools)]
+    model_scores = None
+    if args.model:
+        from .model import SentinelModel, tool_text
+
+        model = SentinelModel.load(args.model)
+        texts = [tool_text(t) for t in tools]
+        model_scores = model.decision(texts) if texts else []
     results = []
-    for row in read_jsonl(args.tools):
-        tool = _tool_from_row(row)
+    for i, tool in enumerate(tools):
         findings = scan_tool(tool)
         value = score(findings)
-        results.append(
-            {
-                "repo_url": tool.repo_url,
-                "commit": tool.commit,
-                "path": tool.path,
-                "line": tool.line,
-                "name": tool.name,
-                "server_name": tool.server_name,
-                "score": value,
-                "level": level(value),
-                "findings": [f.to_dict() for f in findings],
-            }
-        )
+        record = {
+            "repo_url": tool.repo_url,
+            "commit": tool.commit,
+            "path": tool.path,
+            "line": tool.line,
+            "name": tool.name,
+            "server_name": tool.server_name,
+            "rule_score": value,
+            "rule_level": level(value),
+            "findings": [f.to_dict() for f in findings],
+        }
+        flag = False
+        if model_scores is not None:
+            m = round(float(model_scores[i]), 4)
+            flag = m >= model.threshold
+            record["model"] = {"version": model.version, "score": m, "flag": flag}
+            if flag:
+                record["model"]["top_terms"] = model.top_terms(texts[i])
+        record["level"] = final_level(record["rule_level"], flag)
+        results.append(record)
     write_jsonl(args.out, results)
     levels = Counter(r["level"] for r in results)
     print(
@@ -174,6 +195,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("scan", help="score extracted tools with the rule-based signals")
     p.add_argument("--tools", type=Path, default=Path("data/tools.jsonl"))
     p.add_argument("--out", type=Path, default=Path("data/findings.jsonl"))
+    p.add_argument("--model", type=Path, help="classifier file, e.g. models/sentinel-lr-1.pkl")
     p.set_defaults(func=cmd_scan)
 
     args = parser.parse_args(argv)

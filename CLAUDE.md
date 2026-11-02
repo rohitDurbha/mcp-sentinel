@@ -7,13 +7,14 @@ The phased roadmap lives in `docs/PLAN.md`, and every change should map to the p
 ## Commands
 
 ```bash
-uv venv && uv pip install -e ".[dev]"     # install with dev tools
+uv venv && uv pip install -e ".[dev,ml]"  # install with dev and ML tools
 pytest -q                                 # run the full test suite (no network)
 ruff check . && ruff format --check .     # lint and format check
 mcp-sentinel discover --out data/servers.jsonl      # pull server list from the official registry
 mcp-sentinel extract --servers data/servers.jsonl --out data/tools.jsonl
 mcp-sentinel extract --repo https://github.com/OWNER/REPO --out data/tools.jsonl
-mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl
+mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl --model models/sentinel-lr-1.pkl
+python research/train_eval.py --tools data/bench_tools.jsonl data/attack_tools.jsonl   # retrain and re-evaluate
 ```
 
 ## Layout
@@ -25,8 +26,14 @@ src/mcp_sentinel/
   fetch.py         shallow, hook-free git clones with size limits
   extract/         static extractors for Python, TypeScript and JavaScript, Go
   signals.py       explainable risk rules, evidence spans and scoring
+  synth.py         synthetic poisoned and benign variants for training
+  dataset.py       hand labels applied to extracted tools
+  model.py         TF-IDF plus rule-feature classifier and explanations
   cli.py           argparse entry point
 tests/             pytest suite, fixtures live in tests/fixtures
+research/          training and evaluation script for the classifier
+datasets/          hand labels and the list of attack repositories
+models/            trained classifier used by the scan command
 docs/PLAN.md       phases, scope and exit criteria
 ```
 
@@ -50,6 +57,12 @@ docs/PLAN.md       phases, scope and exit criteria
 
 - Every commit, pull request and contributor entry belongs to Rohit Durbha, using the identity in this repo's git config.
 - Never add Co-Authored-By trailers, session links, "Generated with" footers or any other AI attribution to commits or pull requests.
+
+## Evaluation rules
+
+- Real attacks are test data only, so they must never be used for training, threshold choice or template writing.
+- Any change to the model, templates or labels is followed by a full run of `research/train_eval.py` and an update to `docs/model_card.md`.
+- A choice made after looking at test results is stated as such in the model card.
 
 ## Publication rules
 

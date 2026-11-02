@@ -9,17 +9,17 @@ The pipeline pulls every server from the official MCP registry and makes a shall
 ## Quick start
 
 ```bash
-uv venv && uv pip install -e ".[dev]"
+uv venv && uv pip install -e ".[dev,ml]"
 mcp-sentinel discover --out data/servers.jsonl
 mcp-sentinel extract --servers data/servers.jsonl --out data/tools.jsonl
 mcp-sentinel extract --repo https://github.com/modelcontextprotocol/servers --out data/one.jsonl
-mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl
+mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl --model models/sentinel-lr-1.pkl
 pytest
 ```
 
 ## Status
 
-The project is being built in phases, and `docs/PLAN.md` lists each phase with the checks it must pass before the next one starts. Discovery, extraction and the rule-based risk signals are working today, and the classifier and the public site come next.
+The project is being built in phases, and `docs/PLAN.md` lists each phase with the checks it must pass before the next one starts. Discovery, extraction, the rule-based signals and the classifier are working today, and the daily pipeline and public site come next. The model card in `docs/model_card.md` explains how the classifier was trained and tested, including where it still falls short.
 
 ## A note on scores
 

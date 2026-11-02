@@ -7,7 +7,7 @@ These numbers come from running the extractor over the forty repositories listed
 | Repositories cloned | 40 of 40 |
 | Repositories with no Python, TypeScript or Go source | 1 (Rust) |
 | Repositories with supported source that yielded tools | 37 of 39 (95%) |
-| Tools extracted | 1,916 |
+| Tools extracted | 1,918 |
 | Descriptions fully resolved from source | 91% |
 | Parameter descriptions extracted | 2,853 across 768 tools |
 | Wall time for the full run | about 35 seconds |

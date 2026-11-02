@@ -11,6 +11,7 @@ from .found import Found
 
 LANGUAGE = "python"
 SUFFIXES = (".py",)
+_TOOL_CTORS = {"Tool", "MCPTool", "McpTool"}
 
 
 def parse(source: bytes) -> ast.Module | None:
@@ -215,7 +216,10 @@ def extract(module: ast.Module, scope: Scope) -> list[Found]:
             fname = node.func.attr if isinstance(node.func, ast.Attribute) else None
             fname = fname or getattr(node.func, "id", None)
             name_node = _keyword(node, "name")
-            if fname != "Tool" or name_node is None:
+            # Tool(...), types.Tool(...) and ToolDefinition-style wrappers. Broader matching
+            # pulled in catalog entries and framework internals, so the list stays explicit.
+            is_tool_ctor = fname in _TOOL_CTORS or (fname or "").startswith("ToolDefinition")
+            if not is_tool_ctor or name_node is None or _keyword(node, "description") is None:
                 continue
             desc_node = _keyword(node, "description")
             desc = resolve(desc_node, scope) if desc_node is not None else ("", True)

@@ -1,6 +1,6 @@
 # Rule-based signals review
 
-This page records how the Phase 2 rules behaved on real tool descriptions before any of them reach the public site. The run covers the 1,916 tools extracted from the forty benchmark repositories, and every medium or high finding was read by hand in its full context.
+This page records how the Phase 2 rules behaved on real tool descriptions before any of them reach the public site. The run covers the 1,916 tools extracted at the time of review from the forty benchmark repositories, and every medium or high finding was read by hand in its full context.
 
 ## Signal families
 

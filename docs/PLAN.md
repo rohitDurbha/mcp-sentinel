@@ -35,13 +35,18 @@ Exit criteria
 - Every signal has positive and negative unit tests, with positives drawn from published attack examples.
 - A precision check on a hand-reviewed sample of real flagged tools is recorded in `docs/`.
 
+Status. Done, see `docs/signals_review.md`.
+
 ## Phase 3. Labeled data and classifier
 
-Combine public proof-of-concept datasets as positives with crawled tools as negatives, then add synthetic minority examples. Train a calibrated classifier on text embeddings plus the Phase 2 signals, using splits grouped by server so that no repository leaks across train and test.
+Real attacks from public security projects form the test set, and synthetic attacks inserted into real benign descriptions form the training positives. A logistic regression over TF-IDF text features and the Phase 2 signals is trained with splits grouped by repository, and its threshold targets a one percent false positive rate on real benign tools. Scores are treated as rankings, because synthetic training data makes calibrated probabilities misleading.
 
 Exit criteria
-- PR-AUC and recall at a fixed precision are reported with confidence intervals against the rule-only baseline.
-- A model card records data sources, label noise, and known failure cases.
+- PR-AUC and recall at the deployed threshold are reported with bootstrap intervals against the rule-only baseline, on real attacks never used in training.
+- Generalization is measured by holding out each attack family in turn.
+- A model card records data sources, label decisions, the policy choice and known failure cases.
+
+Status. Done, see `docs/model_card.md`.
 
 ## Phase 4. Daily pipeline
 
