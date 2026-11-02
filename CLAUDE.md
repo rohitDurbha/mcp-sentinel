@@ -13,6 +13,7 @@ ruff check . && ruff format --check .     # lint and format check
 mcp-sentinel discover --out data/servers.jsonl      # pull server list from the official registry
 mcp-sentinel extract --servers data/servers.jsonl --out data/tools.jsonl
 mcp-sentinel extract --repo https://github.com/OWNER/REPO --out data/tools.jsonl
+mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl
 ```
 
 ## Layout
@@ -23,6 +24,7 @@ src/mcp_sentinel/
   registry.py      official MCP registry client
   fetch.py         shallow, hook-free git clones with size limits
   extract/         static extractors for Python, TypeScript and JavaScript, Go
+  signals.py       explainable risk rules, evidence spans and scoring
   cli.py           argparse entry point
 tests/             pytest suite, fixtures live in tests/fixtures
 docs/PLAN.md       phases, scope and exit criteria

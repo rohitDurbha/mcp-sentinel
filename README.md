@@ -13,12 +13,13 @@ uv venv && uv pip install -e ".[dev]"
 mcp-sentinel discover --out data/servers.jsonl
 mcp-sentinel extract --servers data/servers.jsonl --out data/tools.jsonl
 mcp-sentinel extract --repo https://github.com/modelcontextprotocol/servers --out data/one.jsonl
+mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl
 pytest
 ```
 
 ## Status
 
-The project is being built in phases, and `docs/PLAN.md` lists each phase with the checks it must pass before the next one starts. Discovery and extraction are working today, and the risk signals and the public site come next.
+The project is being built in phases, and `docs/PLAN.md` lists each phase with the checks it must pass before the next one starts. Discovery, extraction and the rule-based risk signals are working today, and the classifier and the public site come next.
 
 ## A note on scores
 

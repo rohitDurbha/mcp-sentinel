@@ -1,4 +1,4 @@
-"""Command line entry point: ``mcp-sentinel discover`` and ``mcp-sentinel extract``."""
+"""Command line entry point: ``discover``, ``extract`` and ``scan``."""
 
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ from pathlib import Path
 from . import registry
 from .extract import extract_repo
 from .fetch import FetchError, clone, normalize_repo_url
+from .models import ParamText, Tool
+from .signals import level, scan_tool, score
 from .store import read_jsonl, write_jsonl
 
 
@@ -116,6 +118,39 @@ def _summary(report: list[dict], tools: list) -> None:
             print(f"  {pattern:<20} {n}")
 
 
+def _tool_from_row(row: dict) -> Tool:
+    params = [ParamText(p["name"], p["text"]) for p in row.get("params") or []]
+    return Tool(**{**row, "params": params})
+
+
+def cmd_scan(args: argparse.Namespace) -> int:
+    results = []
+    for row in read_jsonl(args.tools):
+        tool = _tool_from_row(row)
+        findings = scan_tool(tool)
+        value = score(findings)
+        results.append(
+            {
+                "repo_url": tool.repo_url,
+                "commit": tool.commit,
+                "path": tool.path,
+                "line": tool.line,
+                "name": tool.name,
+                "server_name": tool.server_name,
+                "score": value,
+                "level": level(value),
+                "findings": [f.to_dict() for f in findings],
+            }
+        )
+    write_jsonl(args.out, results)
+    levels = Counter(r["level"] for r in results)
+    print(
+        f"tools: {len(results)}  "
+        + "  ".join(f"{k}: {levels[k]}" for k in ("high", "medium", "low", "none"))
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="mcp-sentinel")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -135,6 +170,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--workers", type=int, default=8)
     p.add_argument("--limit", type=int, help="process only the first N jobs")
     p.set_defaults(func=cmd_extract)
+
+    p = sub.add_parser("scan", help="score extracted tools with the rule-based signals")
+    p.add_argument("--tools", type=Path, default=Path("data/tools.jsonl"))
+    p.add_argument("--out", type=Path, default=Path("data/findings.jsonl"))
+    p.set_defaults(func=cmd_scan)
 
     args = parser.parse_args(argv)
     if args.command == "extract" and not (args.servers or args.repo):
