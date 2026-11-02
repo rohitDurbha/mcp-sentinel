@@ -44,6 +44,11 @@ docs/PLAN.md       phases, scope and exit criteria
 - Code stays in small plain modules with type hints and dataclasses, and abstractions appear only after a second real use.
 - A phase counts as done only after its exit criteria in `docs/PLAN.md` pass on real repositories with the output shown.
 
+## Authorship rules
+
+- Every commit, pull request and contributor entry belongs to Rohit Durbha, using the identity in this repo's git config.
+- Never add Co-Authored-By trailers, session links, "Generated with" footers or any other AI attribution to commits or pull requests.
+
 ## Publication rules
 
 - The site presents scores as automated risk signals and never calls a server or its author malicious.
