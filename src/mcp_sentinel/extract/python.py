@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import warnings
 
 from ..models import ParamText
 from .common import MAX_DEPTH, Resolved, Scope, concat, dedent, unresolved
@@ -16,7 +17,9 @@ _TOOL_CTORS = {"Tool", "MCPTool", "McpTool"}
 
 def parse(source: bytes) -> ast.Module | None:
     try:
-        return ast.parse(source)
+        with warnings.catch_warnings():  # untrusted code is full of invalid escape sequences
+            warnings.simplefilter("ignore", SyntaxWarning)
+            return ast.parse(source)
     except (SyntaxError, ValueError):
         return None
 

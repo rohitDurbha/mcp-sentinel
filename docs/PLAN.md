@@ -57,6 +57,8 @@ Exit criteria
 
 Status. Built and verified locally on the forty benchmark repositories. The first run cloned all forty in 46 seconds, and the second cloned none, reused every result and produced byte-identical files in 9 seconds. The criterion is fully met once two runs have succeeded in GitHub Actions against the live registry.
 
+The first live run against the full registry kept extracting for five hours and was cancelled at the job limit, so it published nothing. Parsing had been running on threads, which share a single core in Python, so parsing now runs in a process pool and was byte-identical to the threaded output on the benchmark repositories. Each run also has a time budget of 220 minutes, after which no new repository starts and the rest are published as pending for the next run. A budget test on the benchmark left 28 of 40 repositories pending, and the following run finished them with output identical to a single full run.
+
 ## Phase 5. Public site
 
 A static site on GitHub Pages offers search, a page per server with flagged evidence, trend charts and a methodology page with a dispute link.

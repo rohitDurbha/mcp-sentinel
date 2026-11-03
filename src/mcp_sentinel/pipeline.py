@@ -10,12 +10,13 @@ from __future__ import annotations
 import gzip
 import io
 import json
+import multiprocessing
 import shutil
 import sys
 import time
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -115,8 +116,17 @@ def run_pipeline(
     model: Any = None,
     sources: Sources | None = None,
     workers: int = 8,
+    procs: int = 0,
+    budget_seconds: float | None = None,
 ) -> dict:
+    """Run one snapshot.
+
+    ``procs`` moves parsing into that many processes, because parsing is CPU bound and threads
+    share one core. After ``budget_seconds`` no new repo is started, and the jobs left over are
+    published as ``pending`` so the run still finishes and the next one picks them up.
+    """
     sources = sources or Sources()
+    deadline = None if budget_seconds is None else time.monotonic() + budget_seconds
     prev_dir = previous if previous is not None and Path(previous).is_dir() else None
     prev_state = _read_json(prev_dir / "state.json") if prev_dir else {}
     prev_jobs = prev_state.get("jobs", {})
@@ -156,8 +166,24 @@ def run_pipeline(
         if job.repo_url and heads[job.repo_url][0] and not reusable(job):
             to_extract[job.repo_url].append(job)
 
-    def work(url: str) -> tuple[list[tuple[Job, dict, list[Tool]]], float]:
+    parsers = (
+        ProcessPoolExecutor(procs, mp_context=multiprocessing.get_context("spawn"))
+        if procs > 0
+        else None
+    )
+
+    def extract(path: Path, url: str, commit: str, subfolder: str | None) -> Any:
+        if parsers is None:
+            return extract_repo(path, repo_url=url, commit=commit, subfolder=subfolder)
+        future = parsers.submit(
+            extract_repo, path, repo_url=url, commit=commit, subfolder=subfolder
+        )
+        return future.result()
+
+    def work(url: str) -> tuple[list[tuple[Job, dict, list[Tool]]], float] | None:
         started = time.monotonic()
+        if deadline is not None and started >= deadline:
+            return None
         try:
             path, commit = sources.clone(url, cache)
         except FetchError as exc:
@@ -168,9 +194,7 @@ def run_pipeline(
         try:
             for j in to_extract[url]:
                 if j.subfolder not in by_folder:
-                    by_folder[j.subfolder] = extract_repo(
-                        path, repo_url=url, commit=commit, subfolder=j.subfolder
-                    )
+                    by_folder[j.subfolder] = extract(path, url, commit, j.subfolder)
                 ex = by_folder[j.subfolder]
                 status = "ok" if ex.files_scanned else "no_supported_source"
                 info = {"status": status, "commit": commit, "files_scanned": ex.files_scanned}
@@ -182,15 +206,26 @@ def run_pipeline(
         return results, time.monotonic() - started
 
     batches = []
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(work, url): url for url in sorted(to_extract)}
-        for done, future in enumerate(as_completed(futures), 1):
-            batch, seconds = future.result()
-            batches.append(batch)
-            if seconds >= SLOW_REPO_SECONDS:
-                _log(f"slow repo {futures[future]} took {seconds:.0f}s")
-            if done % PROGRESS_EVERY == 0 or done == len(futures):
-                _log(f"extracted {done}/{len(futures)} repos")
+    skipped = 0
+    try:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(work, url): url for url in sorted(to_extract)}
+            for done, future in enumerate(as_completed(futures), 1):
+                outcome = future.result()
+                if outcome is None:
+                    skipped += 1
+                else:
+                    batch, seconds = outcome
+                    batches.append(batch)
+                    if seconds >= SLOW_REPO_SECONDS:
+                        _log(f"slow repo {futures[future]} took {seconds:.0f}s")
+                if done % PROGRESS_EVERY == 0 or done == len(futures):
+                    _log(f"extracted {done - skipped}/{len(futures)} repos")
+    finally:
+        if parsers is not None:
+            parsers.shutdown()
+    if skipped:
+        _log(f"time budget reached, {skipped} repos left pending for the next run")
     fresh = {j.key: (info, tools) for batch in batches for j, info, tools in batch}
 
     state_jobs: dict[str, dict] = {}
@@ -209,6 +244,10 @@ def run_pipeline(
             reused += 1
             kept = ("status", "commit", "files_scanned")
             info = {k: v for k, v in prev_jobs[job.key].items() if k in kept}
+            tools = [tool_from_row(r) for r in prev_tools.get(job.key, [])]
+        elif job.repo_url in to_extract:  # ran out of time before this repo started
+            prev = prev_jobs.get(job.key, {})
+            info = {"status": "pending", "commit": prev.get("commit")}
             tools = [tool_from_row(r) for r in prev_tools.get(job.key, [])]
         elif job.key in prev_jobs and prev_jobs[job.key].get("status") in ("ok", "stale"):
             info = {"status": "stale", "commit": prev_jobs[job.key].get("commit"), "error": err}

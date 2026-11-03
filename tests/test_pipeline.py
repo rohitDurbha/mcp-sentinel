@@ -195,3 +195,57 @@ def test_progress_is_logged_to_stderr(tmp_path, capsys):
     run(forge, tmp_path, "day1")
     err = capsys.readouterr().err
     assert "heads checked" in err and "extracted 2/2 repos" in err
+
+
+def test_time_budget_publishes_partial_results_and_marks_the_rest_pending(tmp_path):
+    forge = FakeForge({A: "a" * 40, B: "b" * 40})
+    out = tmp_path / "day1"
+    summary = run_pipeline(
+        SERVERS,
+        previous=None,
+        out=out,
+        cache=tmp_path / "cache",
+        now="2026-11-02T00:00:00Z",
+        sources=Sources(remote_head=forge.remote_head, clone=forge.clone),
+        workers=1,
+        budget_seconds=0,
+    )
+    assert forge.cloned == []
+    assert summary["jobs"] == {"no_repo": 1, "pending": 2}
+    assert (out / "summary.json").exists()
+    # the next run picks the pending repos up
+    _, s2 = run(forge, tmp_path, "day2", previous=out)
+    assert sorted(forge.cloned) == [A, B] and s2["jobs"]["ok"] == 2
+
+
+def test_pending_repo_keeps_its_previous_tools(tmp_path):
+    forge = FakeForge({A: "a" * 40, B: "b" * 40})
+    day1, _ = run(forge, tmp_path, "day1")
+    forge.heads[A] = "c" * 40
+    out = tmp_path / "day2"
+    run_pipeline(
+        SERVERS,
+        previous=day1,
+        out=out,
+        cache=tmp_path / "cache",
+        now="2026-11-03T00:00:00Z",
+        sources=Sources(remote_head=forge.remote_head, clone=forge.clone),
+        budget_seconds=0,
+    )
+    assert any(t["repo_url"] == A for t in rows(out / "tools.jsonl.gz"))
+
+
+def test_process_pool_gives_the_same_tools_as_threads(tmp_path):
+    forge = FakeForge({A: "a" * 40, B: "b" * 40})
+    threaded, _ = run(forge, tmp_path, "threads")
+    out = tmp_path / "procs"
+    run_pipeline(
+        SERVERS,
+        previous=None,
+        out=out,
+        cache=tmp_path / "cache",
+        now="2026-11-02T00:00:00Z",
+        sources=Sources(remote_head=forge.remote_head, clone=forge.clone),
+        procs=2,
+    )
+    assert (out / "tools.jsonl.gz").read_bytes() == (threaded / "tools.jsonl.gz").read_bytes()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -165,6 +166,8 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
         now=now,
         model=model,
         workers=args.workers,
+        procs=args.procs,
+        budget_seconds=args.budget_minutes * 60 if args.budget_minutes else None,
     )
     brief = {k: v for k, v in summary.items() if k not in ("new_flags", "cleared_flags")}
     print(json.dumps(brief, indent=2))
@@ -207,6 +210,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--cache", type=Path, default=Path(".cache/pipeline"))
     p.add_argument("--workers", type=int, default=16)
     p.add_argument("--limit", type=int, help="process only the first N servers by name")
+    p.add_argument("--procs", type=int, default=os.cpu_count() or 1, help="processes for parsing")
+    p.add_argument(
+        "--budget-minutes", type=float, help="stop starting repos after this, rest stay pending"
+    )
     p.set_defaults(func=cmd_pipeline)
 
     args = parser.parse_args(argv)
