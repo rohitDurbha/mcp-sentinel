@@ -79,6 +79,23 @@ def _counts(flags: list[dict]) -> dict[str, tuple[int, str]]:
     return out
 
 
+ASSETS = ("style.css", "app.js")
+
+
+def _fingerprint(out: Path) -> None:
+    """Point index.html at each asset with a content hash, so a cached old stylesheet is
+    never paired with new markup."""
+    page = out / "index.html"
+    if not page.exists():
+        return
+    html = page.read_text()
+    for name in ASSETS:
+        if (out / name).exists():
+            digest = hashlib.sha1((out / name).read_bytes()).hexdigest()[:10]
+            html = html.replace(f'"{name}"', f'"{name}?v={digest}"')
+    page.write_text(html)
+
+
 def build_site(
     public: Path, out: Path, *, static: Path, disputes: Path | None = None
 ) -> dict[str, int]:
@@ -86,6 +103,7 @@ def build_site(
     if out.exists():
         shutil.rmtree(out)
     shutil.copytree(static, out)
+    _fingerprint(out)
     (out / "data").mkdir(exist_ok=True)
 
     flags = _flags(read_gz_jsonl(public / "flagged.jsonl.gz"), _load_disputes(disputes))

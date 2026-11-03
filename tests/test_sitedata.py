@@ -149,3 +149,21 @@ def test_site_carries_summary_history_and_static_files_deterministically(public,
     build_site(public[0], again, static=public[1])
     for p in (out / "data").glob("*.json"):
         assert p.read_bytes() == (again / "data" / p.name).read_bytes(), p.name
+
+
+def test_asset_links_carry_a_content_hash_so_browsers_never_mix_versions(public, tmp_path):
+    data, static = public
+    (static / "index.html").write_text(
+        '<link rel="stylesheet" href="style.css"><script src="app.js" defer></script>'
+    )
+    (static / "style.css").write_text("a{}")
+    (static / "app.js").write_text("1")
+    out = tmp_path / "site"
+    build_site(data, out, static=static)
+    first = (out / "index.html").read_text()
+    assert 'href="style.css?v=' in first and 'src="app.js?v=' in first
+    (static / "style.css").write_text("b{}")
+    build_site(data, out, static=static)
+    second = (out / "index.html").read_text()
+    assert first.split("style.css?v=")[1][:10] != second.split("style.css?v=")[1][:10]
+    assert first.split("app.js?v=")[1][:10] == second.split("app.js?v=")[1][:10]
