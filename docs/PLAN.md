@@ -78,7 +78,7 @@ Exit criteria
 
 Status. Built and checked locally on the published data from the sixth run. The site is plain HTML, CSS and JavaScript with no build step, and `mcp-sentinel site` turns the data branch into four small JSON files. The home page needs about 480 KB of compressed data, and the 3.1 MB server index loads only for search and server pages. All 723 flags were opened in a headless browser, and each one showed its source link and the marked evidence. The pages had no horizontal scroll at 390 pixels wide. A `pages` workflow rebuilds the site after every successful daily run, and each flag page links to a GitHub issue form for disputes. Reviewed disputes live in `datasets/disputes.json`, where an open dispute adds a note and a cleared flag stops counting toward totals. The phase is done once the live GitHub Pages address serves the same result.
 
-The site was then rebuilt as one screen with a list beside a detail pane. One search box finds both flagged tools and servers, the About page holds the method, numbers and trend charts, and every earlier address still opens the right view. The site uses the system font, so it makes no outside requests, and an `llms.txt` file describes the JSON data for AI agents. A headless browser opened all 723 flag pages again, and each one showed its source link, its rules, its dispute link and the marked evidence.
+A one-screen list and detail layout was tried next and then withdrawn at the owner's request, so the multi-page design returned. The `llms.txt` file for AI agents stayed, because it describes the JSON data that every version of the site reads.
 
 ## Phase 6. Evaluation and write-up
 

@@ -13,9 +13,9 @@ The data refreshes once a day after the scheduled scan. Every file below is plai
 
 ## Pages
 
-- `#/flag/<id>` shows one flag with its evidence marked in the text.
-- `#/server/<registry name>` shows one registry entry and its flagged tools.
-- `#/about` explains the method, the levels and how to dispute a result.
+- `#/` lists every flagged tool, and `#/flag/<id>` shows one flag with its evidence marked in the text.
+- `#/servers?q=<text>` searches the registry, and `#/server/<registry name>` shows one entry and its flagged tools.
+- `#/method` explains the method, the levels and how to dispute a result.
 
 ## Source
 
