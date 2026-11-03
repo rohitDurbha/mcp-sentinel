@@ -221,3 +221,14 @@ def test_python_parse_is_silent_on_invalid_escapes(recwarn):
 
     assert python.parse(b'PATTERN = "\\d+"\n') is not None
     assert not [w for w in recwarn if issubclass(w.category, SyntaxWarning)]
+
+
+def test_escaped_surrogates_become_valid_text(tmp_path):
+    from mcp_sentinel.extract import extract_repo
+
+    (tmp_path / "server.ts").write_text(
+        'server.tool("smile", "Pair \\uD83D\\uDE00 and lone \\uD83D end", {}, async () => ({}));\n'
+    )
+    (tool,) = extract_repo(tmp_path, repo_url="https://github.com/a/b", commit="c").tools
+    assert tool.description == "Pair \U0001f600 and lone � end"
+    tool.description.encode("utf-8")  # must not raise

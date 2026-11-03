@@ -29,9 +29,10 @@ from .redact import redact
 from .scoring import score_tools, tool_from_row
 
 # Bump whenever a change to extraction could change its output, so cached repos rescan.
-EXTRACTOR_VERSION = "1"
+EXTRACTOR_VERSION = "2"
 FLAGGED = ("medium", "high")
 PROGRESS_EVERY = 100
+LARGEST_REPOS = 25
 SLOW_REPO_SECONDS = 60
 
 
@@ -274,6 +275,17 @@ def run_pipeline(
     write_json(out / "state.json", {"extractor_version": EXTRACTOR_VERSION, "jobs": state_jobs})
 
     levels = Counter(r["level"] for r in findings)
+    per_repo: dict[str, dict] = defaultdict(lambda: {"servers": set(), "tools": set()})
+    for t in all_tools:
+        per_repo[t.repo_url]["servers"].add(t.server_name)
+        per_repo[t.repo_url]["tools"].add((t.path, t.line, t.name))
+    largest = sorted(
+        (
+            {"repo_url": url, "servers": len(v["servers"]), "tools": len(v["tools"])}
+            for url, v in per_repo.items()
+        ),
+        key=lambda r: (-r["tools"], r["repo_url"]),
+    )[:LARGEST_REPOS]
     summary = {
         "generated_at": now,
         "extractor_version": EXTRACTOR_VERSION,
@@ -285,10 +297,12 @@ def run_pipeline(
         "repos_cloned": len(to_extract),
         "jobs_reused": reused,
         "tools": len(all_tools),
+        "tools_unique": sum(len(v["tools"]) for v in per_repo.values()),
         "resolved_share": _share(all_tools),
         "levels": {k: levels[k] for k in ("high", "medium", "low", "none")},
         "new_flags": sorted(now_flags - then_flags) if prev_dir else [],
         "cleared_flags": sorted(then_flags - now_flags) if prev_dir else [],
+        "largest_repos": largest,
     }
     write_json(out / "summary.json", summary)
 
@@ -296,7 +310,8 @@ def run_pipeline(
     history = (
         history_file.read_text().splitlines() if history_file and history_file.exists() else []
     )
-    entry = {k: v for k, v in summary.items() if k not in ("new_flags", "cleared_flags")}
+    skip = ("new_flags", "cleared_flags", "largest_repos")
+    entry = {k: v for k, v in summary.items() if k not in skip}
     entry |= {
         "new_flags": len(summary["new_flags"]),
         "cleared_flags": len(summary["cleared_flags"]),

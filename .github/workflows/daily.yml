@@ -56,11 +56,22 @@ jobs:
           mcp-sentinel pipeline $PREV_ARG --out out --model models/sentinel-lr-1.pkl --workers 16 --budget-minutes 220 $LIMIT_ARG
           cat out/summary.json >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Keep the run output as a downloadable artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot
+          path: out
+          retention-days: 3
+          if-no-files-found: ignore
+
       - name: Publish the snapshot to the data branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd out
+          big=$(find . -type f -size +95M)
+          if [ -n "$big" ]; then echo "files too large for GitHub: $big"; ls -la; exit 1; fi
           git init -q -b data
           git config user.name "Rohit Durbha"
           git config user.email "rohitdurbha@gmail.com"

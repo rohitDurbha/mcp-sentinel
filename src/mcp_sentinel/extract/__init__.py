@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from collections import Counter
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +71,11 @@ def _parse(lang: Any, path: Path, source: bytes) -> Any:
     return lang.parse(source)
 
 
+def _valid(text: str) -> str:
+    """Join escaped surrogate pairs and replace lone halves, so the text encodes as UTF-8."""
+    return text.encode("utf-16", "surrogatepass").decode("utf-16", "replace")
+
+
 def extract_repo(
     repo_root: Path,
     *,
@@ -113,10 +118,10 @@ def extract_repo(
                     line=f.line,
                     language=lang.LANGUAGE,
                     pattern=f.pattern,
-                    name=f.name,
-                    description=f.description,
+                    name=_valid(f.name),
+                    description=_valid(f.description),
                     description_resolved=f.description_resolved,
-                    params=f.params,
+                    params=[replace(p, name=_valid(p.name), text=_valid(p.text)) for p in f.params],
                     server_name=server_name,
                 )
             )

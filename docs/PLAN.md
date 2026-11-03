@@ -61,6 +61,8 @@ The first live run against the full registry kept extracting for five hours and 
 
 The second live run checked 29,534 repositories in eight minutes and extracted all 25,515 that needed it in 74 minutes. It then lost the runner while scoring, because the classifier built character features for every tool in one matrix, and that matrix grew by about a gigabyte for every forty thousand tools. Scoring now runs in chunks of two thousand tools, and a test with 191,800 tools peaked at 0.35 GB of memory.
 
+The third live run scored all 2,669,055 tools and then stopped while writing, because some descriptions held half of an escaped emoji that UTF-8 cannot encode. Extraction now joins those pairs and replaces any lone half, which bumped the extractor to version 2. That run also showed that the full tools file would be about 500 MB compressed, far above the 100 MB GitHub allows for one file. The run output is now kept as a workflow artifact for three days, so the size problem can be studied with real data before the snapshot format changes.
+
 ## Phase 5. Public site
 
 A static site on GitHub Pages offers search, a page per server with flagged evidence, trend charts and a methodology page with a dispute link.

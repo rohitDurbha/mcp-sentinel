@@ -249,3 +249,20 @@ def test_process_pool_gives_the_same_tools_as_threads(tmp_path):
         procs=2,
     )
     assert (out / "tools.jsonl.gz").read_bytes() == (threaded / "tools.jsonl.gz").read_bytes()
+
+
+def test_summary_counts_unique_tools_and_names_the_largest_repos(tmp_path):
+    copy = Server(name="io.github.acme/py-copy", description="", version="1", repo_url=A)
+    servers = [*SERVERS, copy]
+    forge = FakeForge({A: "a" * 40, B: "b" * 40})
+    summary = run_pipeline(
+        servers,
+        previous=None,
+        out=tmp_path / "out",
+        cache=tmp_path / "cache",
+        now="2026-11-02T00:00:00Z",
+        sources=Sources(remote_head=forge.remote_head, clone=forge.clone),
+    )
+    assert summary["tools_unique"] < summary["tools"]
+    top = summary["largest_repos"][0]
+    assert top["repo_url"] == A and top["servers"] == 2 and top["tools"] > 0
