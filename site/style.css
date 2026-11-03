@@ -189,11 +189,27 @@ ol.rows a.row:hover { background: var(--paper); }
   .row .sub { grid-column: 1 / 3; }
   .row .chev { grid-column: 3; grid-row: 1 / 4; }
 }
-button.more {
-  display: block; width: 100%; margin-top: 10px; font: 500 0.95rem/1 var(--sans); color: var(--ink-2);
-  background: transparent; border: 1px dashed var(--rule); border-radius: 10px; padding: 13px 16px; cursor: pointer;
+/* Pager under each list. Numbers on wide screens, "Page 3 of 49" on phones. */
+.pager-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 12px; }
+.range { margin: 0; color: var(--ink-2); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.pager { display: flex; align-items: center; gap: 4px; }
+.pager button {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 8px;
+  font: 500 0.9rem/1 var(--sans); font-variant-numeric: tabular-nums; color: var(--ink-2);
+  background: transparent; border: 1px solid transparent; border-radius: 9px; cursor: pointer;
 }
-button.more:hover { color: var(--ink); border-color: var(--ink-2); }
+.pager button:hover:not(:disabled) { color: var(--ink); background: var(--sheet); border-color: var(--rule); }
+.pager button[aria-current="page"] { color: var(--ink); background: var(--sheet); border-color: var(--rule); font-weight: 650; }
+.pager button:disabled { opacity: 0.35; cursor: default; }
+.pager .gap { min-width: 20px; text-align: center; color: var(--ink-2); }
+.pager .of { display: none; color: var(--ink-2); font-size: 0.9rem; padding: 0 6px; }
+.results { scroll-margin-top: 16px; }
+@media (max-width: 560px) {
+  .pager .num, .pager .gap { display: none; }
+  .pager .of { display: inline; }
+  .pager-bar { justify-content: center; }
+  .range { width: 100%; text-align: center; }
+}
 
 /* Primary actions after Magic UI's InteractiveHoverButton (MIT). The dot grows to fill the
    button while the label slides out and an arrowed copy slides in. */

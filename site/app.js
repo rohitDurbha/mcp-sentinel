@@ -1,7 +1,7 @@
 "use strict";
 
 const REPO = "https://github.com/rohitDurbha/mcp-sentinel";
-const PAGE = 60;
+const PER_PAGE = 15;
 const LEVEL_WORDS = { high: "High risk signal", medium: "Medium risk signal", cleared: "Cleared by review" };
 const STATUS_WORDS = {
   ok: "Scanned successfully from its source code on the default branch.",
@@ -81,6 +81,7 @@ const svg = (paths, size = 16) => {
 };
 const searchIcon = () => svg(["M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z", "m20 20-3.5-3.5"]);
 const arrowIcon = () => svg(["M5 12h14", "m13 6 6 6-6 6"]);
+const chevronIcon = (side) => svg([side === "left" ? "m15 6-6 6 6 6" : "m9 6 6 6-6 6"]);
 
 // A search field with an icon and a slash shortcut, after the inputs on 21st.dev and uiverse.
 const searchField = (input) => h("label", { class: "field" }, searchIcon(), input, h("kbd", { "aria-hidden": "true" }, "/"));
@@ -162,24 +163,42 @@ function flagRow(f) {
   ));
 }
 
+// A short page of rows with a pager underneath, so long result sets never become one long scroll.
 function pagedList(container, items, render, emptyText) {
   container.replaceChildren();
   if (!items.length) {
-    container.append(h("p", { class: "empty" }, emptyText));
+    container.append(h("p", { class: "empty", "aria-live": "polite" }, emptyText));
     return;
   }
+  const pages = Math.ceil(items.length / PER_PAGE);
   const list = h("ol", { class: "rows" });
-  let shown = 0;
-  const more = h("button", { class: "more", type: "button" });
-  const step = () => {
-    list.append(...items.slice(shown, shown + PAGE).map(render));
-    shown = Math.min(shown + PAGE, items.length);
-    more.textContent = `Show ${Math.min(PAGE, items.length - shown)} more`;
-    more.hidden = shown >= items.length;
+  const range = h("p", { class: "range", "aria-live": "polite" });
+  const nav = h("nav", { class: "pager", "aria-label": "Pages" });
+  const go = (page) => () => {
+    show(page);
+    if (container.getBoundingClientRect().top < 0) container.scrollIntoView({ block: "start" });
   };
-  more.addEventListener("click", step);
-  step();
-  container.append(list, more);
+  const button = (label, page, attrs = {}) => h("button", { type: "button", onclick: go(page), ...attrs }, label);
+  const show = (page) => {
+    const first = (page - 1) * PER_PAGE;
+    list.replaceChildren(...items.slice(first, first + PER_PAGE).map(render));
+    range.textContent = `${num(first + 1)}\u2013${num(Math.min(first + PER_PAGE, items.length))} of ${num(items.length)}`;
+    const numbers = [];
+    for (let n = 1; n <= pages; n++) {
+      if (n === 1 || n === pages || Math.abs(n - page) <= 1) numbers.push(n);
+      else if (numbers.at(-1) !== "gap") numbers.push("gap");
+    }
+    nav.replaceChildren(
+      button(chevronIcon("left"), page - 1, { class: "step", "aria-label": "Previous page", disabled: page === 1 }),
+      ...numbers.map((n) => (n === "gap"
+        ? h("span", { class: "gap", "aria-hidden": "true" }, "\u2026")
+        : button(num(n), n, { class: "num", "aria-label": `Page ${n}`, "aria-current": n === page ? "page" : null }))),
+      h("span", { class: "of" }, `Page ${page} of ${pages}`),
+      button(chevronIcon("right"), page + 1, { class: "step", "aria-label": "Next page", disabled: page === pages }),
+    );
+  };
+  show(1);
+  container.append(list, h("div", { class: "pager-bar" }, range, pages > 1 ? nav : null));
 }
 
 /* Trend chart. One y axis, thin lines, markers, direct labels, a legend, hover and a table. */
@@ -294,8 +313,7 @@ async function viewHome(main) {
   const lvl = segmented("Level", [["", "All"], ["high", "High"], ["medium", "Medium"], ["cleared", "Cleared"]], () => apply());
   const sig = h("select", { "aria-label": "Signal" }, h("option", { value: "" }, "All signals"),
     ...signals.map((s) => h("option", { value: s }, s.replaceAll("_", " "))), h("option", { value: "model" }, "classifier only"));
-  const count = h("p", { class: "count", "aria-live": "polite" });
-  const list = h("div");
+  const list = h("div", { class: "results" });
   const order = { high: 0, medium: 1, cleared: 2 };
   const sorted = [...flags].sort((a, b) => order[shownLevel(a)] - order[shownLevel(b)] || b.rule_score - a.rule_score || a.name.localeCompare(b.name));
   const apply = () => {
@@ -304,11 +322,10 @@ async function viewHome(main) {
       (!lvl.value() || shownLevel(f) === lvl.value()) &&
       (!sig.value || (sig.value === "model" ? !f.findings.length : f.findings.some((x) => x.signal === sig.value))) &&
       (!needle || `${f.name} ${f.repo_url} ${f.description}`.toLowerCase().includes(needle)));
-    count.textContent = `Showing ${num(hits.length)} of ${num(flags.length)} flagged tools.`;
     pagedList(list, hits, flagRow, "No flagged tool matches these filters. Try a broader phrase or another level.");
   };
   for (const el of [q, sig]) el.addEventListener("input", apply);
-  main.append(h("div", { class: "controls" }, searchField(q), lvl.el, h("span", { class: "select" }, sig)), count, list);
+  main.append(h("div", { class: "controls" }, searchField(q), lvl.el, h("span", { class: "select" }, sig)), list);
   apply();
 
   const runs = history.map((r) => r.generated_at);
@@ -333,10 +350,11 @@ async function viewServers(main, params) {
   const q = h("input", { type: "search", placeholder: "For example postgres or github.com/owner", value: params.get("q") || "", "aria-label": "Search servers" });
   const onlyFlagged = h("input", { type: "checkbox", checked: params.get("flagged") === "1" });
   const count = h("p", { class: "count", "aria-live": "polite" }, "Loading the server index, which takes a moment on slow connections.");
-  const list = h("div");
+  const list = h("div", { class: "results" });
   main.append(h("div", { class: "controls" }, searchField(q),
     h("label", { class: "toggle" }, onlyFlagged, "Only servers with flags")), count, list);
   const data = await servers();
+  count.remove();
   const render = (s) => h("li", {}, h("a", { class: "row", href: serverHref(s.name) },
     s.flags ? pill(s.level) : h("span", { class: "side pill-slot" }, LIST_STATUS[s.status] ?? `${num(s.tools)} tools`),
     h("span", { class: "name" }, s.name),
@@ -349,7 +367,6 @@ async function viewServers(main, params) {
     const needle = q.value.trim().toLowerCase();
     let hits = data.list.filter((s) => (!onlyFlagged.checked || s.flags) && (!needle || s.hay.includes(needle)));
     if (!needle) hits = [...hits].sort((a, b) => rank[a.level] - rank[b.level] || b.flags - a.flags || a.name.localeCompare(b.name));
-    count.textContent = `${num(hits.length)} of ${num(data.list.length)} registry entries match.`;
     pagedList(list, hits, render, "No registry entry matches that search. Try part of the name or the repository owner.");
     const next = new URLSearchParams({ ...(needle && { q: q.value.trim() }), ...(onlyFlagged.checked && { flagged: "1" }) });
     history.replaceState(null, "", `#/servers${next.size ? `?${next}` : ""}`);
@@ -378,7 +395,7 @@ async function viewServer(main, name) {
     ),
     h("h2", {}, "Flagged tools in this server"),
   );
-  const list = h("div");
+  const list = h("div", { class: "results" });
   main.append(list);
   pagedList(list, mine, flagRow, s.status === "ok"
     ? "None of the tools in this server tripped a rule or the classifier in the latest scan."
