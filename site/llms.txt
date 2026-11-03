@@ -1,0 +1,22 @@
+# MCP Sentinel
+
+> Daily automated risk signals for tool descriptions in the public MCP registry. Each flag carries the exact evidence text, the rule or model that fired, and a link to the source line. A flag is a reason for a human to read the text closely and never a claim that a server or its author acted in bad faith.
+
+The data refreshes once a day after the scheduled scan. Every file below is plain JSON with stable keys and sorted records.
+
+## Data
+
+- [data/flags.json](data/flags.json): one record per distinct flagged tool. Fields include `id`, `name`, `repo_url`, `commit`, `path`, `line`, `source_url`, `level` (`high` or `medium`), `description`, `params`, `findings` (each with `rule`, `signal`, `severity`, `field`, `start`, `end`, `evidence`, `message`), `model` (`score`, `flag`, `top_terms`), `servers` (registry names that list this tool) and an optional `dispute` (`status` is `open`, `confirmed` or `cleared`). Finding offsets count Unicode code points.
+- [data/servers.json](data/servers.json): every registry entry as `columns` plus `rows`, with `name`, `title`, `description`, `repo_url`, `subfolder`, `status`, `tools`, `flags` and `level`.
+- [data/summary.json](data/summary.json): totals for the latest run.
+- [data/history.json](data/history.json): one summary per daily run, oldest first.
+
+## Pages
+
+- `#/flag/<id>` shows one flag with its evidence marked in the text.
+- `#/server/<registry name>` shows one registry entry and its flagged tools.
+- `#/about` explains the method, the levels and how to dispute a result.
+
+## Source
+
+- [Code, method and model card](https://github.com/rohitDurbha/mcp-sentinel)
