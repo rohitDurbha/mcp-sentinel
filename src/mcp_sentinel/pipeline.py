@@ -11,9 +11,11 @@ import gzip
 import io
 import json
 import shutil
+import sys
+import time
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -28,6 +30,8 @@ from .scoring import score_tools, tool_from_row
 # Bump whenever a change to extraction could change its output, so cached repos rescan.
 EXTRACTOR_VERSION = "1"
 FLAGGED = ("medium", "high")
+PROGRESS_EVERY = 100
+SLOW_REPO_SECONDS = 60
 
 
 @dataclass(frozen=True)
@@ -70,6 +74,11 @@ def write_json(path: Path, data: Any) -> None:
 
 def _read_json(path: Path) -> dict:
     return json.loads(path.read_text()) if path.exists() else {}
+
+
+def _log(message: str) -> None:
+    """Progress goes to stderr so long runs show where they are in the Actions log."""
+    print(message, file=sys.stderr, flush=True)
 
 
 # Steps
@@ -125,8 +134,10 @@ def run_pipeline(
         except FetchError as exc:
             return url, None, str(exc)
 
+    started = time.monotonic()
     with ThreadPoolExecutor(max_workers=workers) as pool:
         heads = {url: (sha, err) for url, sha, err in pool.map(head, urls)}
+    _log(f"heads checked for {len(urls)} repos in {time.monotonic() - started:.0f}s")
 
     def reusable(job: Job) -> bool:
         prev = prev_jobs.get(job.key)
@@ -145,31 +156,41 @@ def run_pipeline(
         if job.repo_url and heads[job.repo_url][0] and not reusable(job):
             to_extract[job.repo_url].append(job)
 
-    def work(url: str) -> list[tuple[Job, dict, list[Tool]]]:
+    def work(url: str) -> tuple[list[tuple[Job, dict, list[Tool]]], float]:
+        started = time.monotonic()
         try:
             path, commit = sources.clone(url, cache)
         except FetchError as exc:
-            return [(j, {"status": "clone_failed", "error": str(exc)}, []) for j in to_extract[url]]
+            failed = {"status": "clone_failed", "error": str(exc)}
+            return [(j, failed, []) for j in to_extract[url]], time.monotonic() - started
         results = []
+        by_folder: dict[str | None, Any] = {}  # many registry entries can share one folder
         try:
             for j in to_extract[url]:
-                ex = extract_repo(
-                    path,
-                    repo_url=url,
-                    commit=commit,
-                    subfolder=j.subfolder,
-                    server_name=j.server_name,
-                )
+                if j.subfolder not in by_folder:
+                    by_folder[j.subfolder] = extract_repo(
+                        path, repo_url=url, commit=commit, subfolder=j.subfolder
+                    )
+                ex = by_folder[j.subfolder]
                 status = "ok" if ex.files_scanned else "no_supported_source"
                 info = {"status": status, "commit": commit, "files_scanned": ex.files_scanned}
-                results.append((j, info, ex.tools))
+                tools = [replace(t, server_name=j.server_name) for t in ex.tools]
+                results.append((j, info, tools))
         finally:
             if Path(path).resolve().is_relative_to(Path(cache).resolve()):
                 shutil.rmtree(path, ignore_errors=True)  # keep runner disk usage flat
-        return results
+        return results, time.monotonic() - started
 
+    batches = []
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        batches = list(pool.map(work, sorted(to_extract)))
+        futures = {pool.submit(work, url): url for url in sorted(to_extract)}
+        for done, future in enumerate(as_completed(futures), 1):
+            batch, seconds = future.result()
+            batches.append(batch)
+            if seconds >= SLOW_REPO_SECONDS:
+                _log(f"slow repo {futures[future]} took {seconds:.0f}s")
+            if done % PROGRESS_EVERY == 0 or done == len(futures):
+                _log(f"extracted {done}/{len(futures)} repos")
     fresh = {j.key: (info, tools) for batch in batches for j, info, tools in batch}
 
     state_jobs: dict[str, dict] = {}

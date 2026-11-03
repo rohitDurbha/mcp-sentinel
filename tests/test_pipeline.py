@@ -155,3 +155,43 @@ def test_missing_previous_directory_is_a_first_run(tmp_path, bad):
     forge = FakeForge({A: "a" * 40, B: "b" * 40})
     _, summary = run(forge, tmp_path, "day1", previous=(tmp_path / bad) if bad else None)
     assert summary["jobs_reused"] == 0
+
+
+def test_shared_repo_folder_is_extracted_once_for_all_its_servers(tmp_path, monkeypatch):
+    import mcp_sentinel.pipeline as pipeline
+
+    calls = []
+    real = pipeline.extract_repo
+
+    def counting(*args, **kwargs):
+        calls.append(kwargs["subfolder"])
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(pipeline, "extract_repo", counting)
+    servers = [
+        Server(name="io.github.acme/one", description="", version="1", repo_url=A),
+        Server(name="io.github.acme/two", description="", version="1", repo_url=A),
+    ]
+    forge = FakeForge({A: "a" * 40})
+    run_pipeline(
+        servers,
+        previous=None,
+        out=tmp_path / "out",
+        cache=tmp_path / "cache",
+        now="2026-11-02T00:00:00Z",
+        sources=Sources(remote_head=forge.remote_head, clone=forge.clone),
+    )
+    assert calls == [None]
+    tools = rows(tmp_path / "out" / "tools.jsonl.gz")
+    by_server = {
+        name: [t for t in tools if t["server_name"] == name]
+        for name in ("io.github.acme/one", "io.github.acme/two")
+    }
+    assert len(by_server["io.github.acme/one"]) == len(by_server["io.github.acme/two"]) > 0
+
+
+def test_progress_is_logged_to_stderr(tmp_path, capsys):
+    forge = FakeForge({A: "a" * 40, B: "b" * 40})
+    run(forge, tmp_path, "day1")
+    err = capsys.readouterr().err
+    assert "heads checked" in err and "extracted 2/2 repos" in err
