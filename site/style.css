@@ -59,14 +59,17 @@ code, .mono { font-family: var(--mono); font-size: 0.92em; }
 
 header.site, main, footer.site { max-width: 68rem; margin: 0 auto; padding: 0 16px; }
 header.site {
-  display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline;
+  display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center;
   justify-content: space-between; padding-top: 20px; padding-bottom: 20px;
 }
 .brand {
-  font: 600 1.15rem/1 var(--sans); color: var(--ink); text-decoration: none;
-  background: linear-gradient(transparent 55%, var(--marker) 55%, var(--marker) 90%, transparent 90%);
-  padding: 0 2px;
+  display: inline-flex; align-items: center; gap: 10px; align-self: center;
+  font: 650 1.08rem/1 var(--sans); letter-spacing: -0.01em; color: var(--ink); text-decoration: none;
 }
+.glyph { width: 26px; height: 26px; flex: none; }
+.glyph-bg { fill: var(--ink); }
+.glyph-line { fill: var(--paper); fill-opacity: 0.55; }
+.glyph-mark { fill: var(--marker); }
 nav { display: flex; gap: 20px; }
 nav a { color: var(--ink-2); text-decoration: none; font-weight: 500; }
 nav a[aria-current="page"] { color: var(--ink); text-decoration: underline; text-decoration-thickness: 2px; }
