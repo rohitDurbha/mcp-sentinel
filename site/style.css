@@ -11,6 +11,7 @@
   --high: #d03b3b;
   --medium: #ec835a;
   --focus: #1f4fb8;
+  --marker-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20' preserveAspectRatio='none'%3E%3Cpath d='M1.2 4.6C18 2.4 41 4 63 2.7S93 3.6 98.8 2.9L99.4 16.4C81 17.9 58 16.3 34 17.6S7 16.7.7 17.5Z' fill='%23FFE45C'/%3E%3C/svg%3E");
   --serif: "Newsreader", Georgia, serif;
   --sans: "Hanken Grotesk", system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -26,6 +27,7 @@
     --link: #8fb0ff;
     --marker: #e6c93a;
     --focus: #8fb0ff;
+    --marker-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20' preserveAspectRatio='none'%3E%3Cpath d='M1.2 4.6C18 2.4 41 4 63 2.7S93 3.6 98.8 2.9L99.4 16.4C81 17.9 58 16.3 34 17.6S7 16.7.7 17.5Z' fill='%23E6C93A'/%3E%3C/svg%3E");
   }
 }
 :root[data-theme="dark"] {
@@ -38,6 +40,7 @@
   --link: #8fb0ff;
   --marker: #e6c93a;
   --focus: #8fb0ff;
+  --marker-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20' preserveAspectRatio='none'%3E%3Cpath d='M1.2 4.6C18 2.4 41 4 63 2.7S93 3.6 98.8 2.9L99.4 16.4C81 17.9 58 16.3 34 17.6S7 16.7.7 17.5Z' fill='%23E6C93A'/%3E%3C/svg%3E");
 }
 
 * { box-sizing: border-box; }
@@ -90,19 +93,32 @@ p { max-width: 68ch; }
   font: 400 1.18rem/1.65 var(--serif); margin: 0; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .quoted.small { font-size: 1.05rem; }
+/* A hand-drawn marker in place of a flat box, after Magic UI's Highlighter (MIT). */
 mark {
-  background: var(--marker); color: var(--marker-ink); padding: 0.05em 0.1em;
-  border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  background: var(--marker-shape) no-repeat 0 50% / 100% 100%; color: var(--marker-ink);
+  padding: 0.1em 0.16em; margin: 0 -0.04em;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
 }
-.specimen mark { animation: mark-in 900ms ease-out 300ms both; background-repeat: no-repeat; }
-@keyframes mark-in {
-  from { background: linear-gradient(var(--marker), var(--marker)) 0 0 / 0% 100% no-repeat; }
-  to { background: linear-gradient(var(--marker), var(--marker)) 0 0 / 100% 100% no-repeat; }
+.specimen mark { animation: mark-in 650ms cubic-bezier(0.3, 0.7, 0.4, 1) both; animation-delay: calc(500ms + var(--i, 0) * 180ms); }
+@keyframes mark-in { from { background-size: 0% 100%; } to { background-size: 100% 100%; } }
+
+/* One entrance on the home page, after Magic UI's BlurFade (MIT). */
+.reveal { animation: blur-fade 450ms ease-out both; animation-delay: calc(40ms + var(--i, 0) * 70ms); }
+@keyframes blur-fade { from { opacity: 0; transform: translateY(-6px); filter: blur(6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .specimen mark, .reveal { animation: none; }
 }
-@media (prefers-reduced-motion: reduce) { .specimen mark { animation: none; } }
 
 .level { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
 .level::before { content: ""; width: 10px; height: 10px; flex: none; }
+.pill {
+  padding: 3px 9px 3px 8px; border-radius: 999px; font-size: 0.8rem; line-height: 1.4; width: max-content;
+  background: color-mix(in srgb, var(--level-color, var(--ink-2)) 13%, transparent);
+}
+.pill::before { width: 8px; height: 8px; }
+.level.high { --level-color: var(--high); }
+.level.medium { --level-color: var(--medium); }
 .level.high::before { background: var(--high); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .level.medium::before { background: var(--medium); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .level.cleared::before { border: 2px solid var(--ink-2); border-radius: 50%; width: 9px; height: 9px; }
@@ -110,40 +126,90 @@ mark {
 
 .facts { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 20px 0 0; padding: 0; list-style: none; }
 .facts li { display: flex; flex-direction: column; }
-.facts b { font: 600 1.35rem/1.2 var(--sans); font-variant-numeric: tabular-nums; }
+.facts b { font: 600 1.6rem/1.2 var(--sans); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .facts span { color: var(--ink-2); font-size: 0.9rem; }
 
-.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; margin: 8px 0 12px; }
-.controls label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--ink-2); }
-input[type="search"], select {
-  font: inherit; font-size: 1rem; color: var(--ink); background: var(--sheet);
-  border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; min-height: 42px;
+/* Inputs after the search fields on 21st.dev and uiverse, with an icon and a shortcut hint. */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; margin: 8px 0 14px; }
+.field {
+  display: flex; align-items: center; gap: 8px; flex: 1 1 18rem; min-height: 44px; padding: 0 10px 0 12px;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px;
+  transition: border-color 150ms, box-shadow 150ms;
 }
-input[type="search"] { width: min(28rem, 100%); }
-.controls label.grow { flex: 1 1 16rem; }
-.controls label.grow input { width: 100%; }
-.check { flex-direction: row !important; align-items: center; gap: 8px !important; min-height: 42px; }
+.field:focus-within { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
+.field svg { flex: none; color: var(--ink-2); }
+.field input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; font-size: 1rem; color: var(--ink); padding: 10px 0; }
+.field input::-webkit-search-cancel-button { cursor: pointer; }
+kbd {
+  font: 500 0.75rem/1 var(--mono); color: var(--ink-2); border: 1px solid var(--rule);
+  border-bottom-width: 2px; border-radius: 5px; padding: 3px 6px;
+}
+.field:focus-within kbd { visibility: hidden; }
+.segmented { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); min-height: 44px; }
+.segmented label { position: relative; display: flex; }
+.segmented input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.segmented span { display: flex; align-items: center; padding: 0 12px; border-radius: 7px; font-size: 0.92rem; font-weight: 500; color: var(--ink-2); transition: background 150ms, color 150ms; }
+.segmented input:checked + span { background: var(--sheet); color: var(--ink); box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 14%, transparent); }
+.segmented input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 1px; }
+.select { position: relative; display: inline-flex; }
+.select::after {
+  content: ""; position: absolute; right: 13px; top: 50%; width: 7px; height: 7px; pointer-events: none;
+  border: solid var(--ink-2); border-width: 0 1.5px 1.5px 0; transform: translateY(-70%) rotate(45deg);
+}
+select {
+  appearance: none; font: inherit; font-size: 0.95rem; color: var(--ink); background: var(--sheet);
+  border: 1px solid var(--rule); border-radius: 10px; padding: 0 34px 0 12px; min-height: 44px; cursor: pointer;
+}
+select:focus-visible { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
+.toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--ink-2); font-size: 0.95rem; cursor: pointer; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--ink); }
 .count { color: var(--ink-2); font-size: 0.9rem; margin: 0 0 8px; }
 
-ol.rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
-ol.rows li { border-bottom: 1px solid var(--rule); }
+/* List rows after the index layouts collected on Mobbin. Pill, title, detail, count, chevron. */
+ol.rows { list-style: none; margin: 0; padding: 4px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; }
+ol.rows li + li { border-top: 1px solid var(--rule); }
 ol.rows a.row {
-  display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; gap: 4px 16px;
-  padding: 12px 4px; color: var(--ink); text-decoration: none;
+  display: grid; grid-template-columns: 6.2rem minmax(0, 1fr) auto 12px; align-items: center; gap: 2px 14px;
+  padding: 11px 12px; border-radius: 10px; color: var(--ink); text-decoration: none;
 }
-ol.rows a.row:hover { background: var(--sheet); }
-.row .name { font-family: var(--mono); font-size: 0.95rem; overflow-wrap: anywhere; }
-.row .sub { grid-column: 2 / 4; color: var(--ink-2); font-size: 0.9rem; overflow-wrap: anywhere; }
-.row .side { color: var(--ink-2); font-size: 0.88rem; text-align: right; white-space: nowrap; }
+ol.rows li:hover + li, ol.rows li:hover { border-color: transparent; }
+ol.rows a.row:hover { background: var(--paper); }
+.row .name { font-family: var(--mono); font-size: 0.93rem; overflow-wrap: anywhere; }
+.row .sub { grid-column: 2 / 4; color: var(--ink-2); font-size: 0.88rem; overflow-wrap: anywhere; }
+.row .side { color: var(--ink-2); font-size: 0.85rem; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.row .chev { grid-column: 4; grid-row: 1 / 3; width: 7px; height: 7px; border: solid var(--ink-2); border-width: 1.5px 1.5px 0 0; transform: rotate(45deg); opacity: 0.5; transition: transform 150ms, opacity 150ms; }
+.row:hover .chev { opacity: 1; transform: translateX(2px) rotate(45deg); }
+.row .pill { grid-row: 1 / 3; }
 @media (max-width: 560px) {
-  ol.rows a.row { grid-template-columns: minmax(0, 1fr) auto; }
-  .row .level { grid-column: 1 / 3; }
+  ol.rows a.row { grid-template-columns: minmax(0, 1fr) auto 12px; }
+  .row .pill { grid-row: auto; grid-column: 1 / 3; margin-bottom: 4px; }
   .row .sub { grid-column: 1 / 3; }
+  .row .chev { grid-column: 3; grid-row: 1 / 4; }
 }
-button.more, a.button {
-  display: inline-block; margin-top: 14px; font: 500 0.95rem/1 var(--sans); color: var(--ink);
-  background: var(--sheet); border: 1px solid var(--ink); border-radius: 6px; padding: 11px 16px;
-  cursor: pointer; text-decoration: none;
+button.more {
+  display: block; width: 100%; margin-top: 10px; font: 500 0.95rem/1 var(--sans); color: var(--ink-2);
+  background: transparent; border: 1px dashed var(--rule); border-radius: 10px; padding: 13px 16px; cursor: pointer;
+}
+button.more:hover { color: var(--ink); border-color: var(--ink-2); }
+
+/* Primary actions after Magic UI's InteractiveHoverButton (MIT). The dot grows to fill the
+   button while the label slides out and an arrowed copy slides in. */
+a.action {
+  position: relative; display: inline-flex; align-items: center; overflow: hidden; isolation: isolate;
+  margin-top: 16px; padding: 12px 22px 12px 18px; border: 1px solid var(--ink); border-radius: 999px;
+  color: var(--ink); background: var(--sheet); font-weight: 600; text-decoration: none;
+}
+a.action .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); margin-right: 10px; transition: transform 350ms ease; z-index: -1; }
+a.action .label { transition: transform 300ms ease, opacity 300ms ease; }
+a.action .hover {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+  color: var(--sheet); opacity: 0; transform: translateX(40px); transition: transform 300ms ease, opacity 300ms ease;
+}
+a.action:hover .dot, a.action:focus-visible .dot { transform: scale(100); }
+a.action:hover .label, a.action:focus-visible .label { transform: translateX(40px); opacity: 0; }
+a.action:hover .hover, a.action:focus-visible .hover { transform: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  a.action .dot, a.action .label, a.action .hover { transition: none; }
 }
 
 dl.meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 20px; margin: 16px 0; }
@@ -175,3 +241,6 @@ figure.chart figcaption { font-weight: 600; margin-bottom: 4px; }
 .chart table { border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .chart th, .chart td { text-align: left; padding: 3px 14px 3px 0; border-bottom: 1px solid var(--rule); }
 .empty { color: var(--ink-2); padding: 24px 0; }
+.row .pill-slot { grid-row: 1 / 3; text-align: left; white-space: normal; }
+@media (max-width: 560px) { .row .pill-slot { grid-row: auto; grid-column: 1 / 3; } }
+@media (hover: none) { kbd { display: none; } }

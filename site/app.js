@@ -65,6 +65,64 @@ const shownLevel = (f) => (f.dispute?.status === "cleared" ? "cleared" : f.level
 function levelTag(level) {
   return h("span", { class: `level ${level}` }, LEVEL_WORDS[level] || level);
 }
+const PILL_WORDS = { high: "High", medium: "Medium", cleared: "Cleared" };
+const pill = (level) => h("span", { class: `level pill ${level}`, title: LEVEL_WORDS[level] }, PILL_WORDS[level] || level);
+const chevron = () => h("span", { class: "chev", "aria-hidden": "true" });
+
+const svg = (paths, size = 16) => {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  for (const [k, v] of Object.entries({ width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": 2, "stroke-linecap": "round", "aria-hidden": "true" })) el.setAttribute(k, v);
+  for (const d of paths) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    el.append(path);
+  }
+  return el;
+};
+const searchIcon = () => svg(["M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z", "m20 20-3.5-3.5"]);
+const arrowIcon = () => svg(["M5 12h14", "m13 6 6 6-6 6"]);
+
+// A search field with an icon and a slash shortcut, after the inputs on 21st.dev and uiverse.
+const searchField = (input) => h("label", { class: "field" }, searchIcon(), input, h("kbd", { "aria-hidden": "true" }, "/"));
+
+// Radio buttons drawn as a segmented control. Returns the element and a reader for its value.
+function segmented(name, options, onChange) {
+  const el = h("div", { class: "segmented", role: "radiogroup", "aria-label": name });
+  for (const [value, label] of options) {
+    el.append(h("label", {}, h("input", { type: "radio", name, value, checked: value === "", onchange: onChange }), h("span", {}, label)));
+  }
+  return { el, value: () => el.querySelector("input:checked").value };
+}
+
+// Primary action after Magic UI's InteractiveHoverButton (MIT).
+const action = (href, text) => h("a", { class: "action", href },
+  h("span", { class: "dot", "aria-hidden": "true" }), h("span", { class: "label" }, text),
+  h("span", { class: "hover", "aria-hidden": "true" }, text, arrowIcon()));
+
+// Counts up once when the number scrolls into view, after Magic UI's NumberTicker (MIT).
+function ticker(value) {
+  const el = h("b", { style: `min-width:${num(value).length}ch` }, num(value));
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) return el;
+  el.textContent = "0";
+  const seen = new IntersectionObserver(([entry]) => {
+    if (!entry.isIntersecting) return;
+    seen.disconnect();
+    const start = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - start) / 1400);
+      el.textContent = num(Math.round(value * (1 - (1 - k) ** 4)));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+  seen.observe(el);
+  return el;
+}
+const reveal = (el, i) => {
+  el.classList.add("reveal");
+  el.style.setProperty("--i", i);
+  return el;
+};
 function day(iso) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
@@ -81,7 +139,7 @@ function marked(text, spans, cls = "quoted") {
   const out = h("p", { class: cls });
   let at = 0;
   for (const [s, e] of merged) {
-    out.append(chars.slice(at, s).join(""), h("mark", {}, chars.slice(s, e).join("")));
+    out.append(chars.slice(at, s).join(""), h("mark", { style: `--i:${out.childElementCount}` }, chars.slice(s, e).join("")));
     at = e;
   }
   out.append(chars.slice(at).join(""));
@@ -96,9 +154,10 @@ function flagRow(f) {
   const reason = first ? first.message : "The classifier flagged this text.";
   const where = f.servers.length > 1 ? `${f.servers.length} registry entries` : "1 registry entry";
   return h("li", {}, h("a", { class: "row", href: flagHref(f) },
-    levelTag(shownLevel(f)),
+    pill(shownLevel(f)),
     h("span", { class: "name" }, f.name),
     h("span", { class: "side" }, where),
+    chevron(),
     h("span", { class: "sub" }, `${reason}. In ${repoShort(f.repo_url)}.`),
   ));
 }
@@ -210,31 +269,30 @@ async function viewHome(main) {
     .sort((a, b) => b.model.score - a.model.score || a.id.localeCompare(b.id))[0] || counted[0];
 
   main.append(
-    h("h1", {}, "Hidden instructions in MCP tool descriptions, checked every day."),
-    h("p", { class: "lede" },
+    reveal(h("h1", {}, "Hidden instructions in MCP tool descriptions, checked every day."), 0),
+    reveal(h("p", { class: "lede" },
       "AI assistants read the description of every tool they can call, and that text can quietly steer them. ",
-      "This site reads the source code behind each public server in the official MCP registry and marks the exact words that look like instructions aimed at the assistant."),
+      "This site reads the source code behind each public server in the official MCP registry and marks the exact words that look like instructions aimed at the assistant."), 1),
   );
   if (specimen) {
-    main.append(h("section", { class: "specimen", "aria-label": "Example flagged tool" },
+    main.append(reveal(h("section", { class: "specimen", "aria-label": "Example flagged tool" },
       h("p", { class: "who" }, "From the tool ", h("code", {}, specimen.name), ` in ${repoShort(specimen.repo_url)}, as found in the latest scan.`),
       marked(specimen.description, spansFor(specimen, "description")),
-    ), h("p", {}, h("a", { href: flagHref(specimen) }, "See why this tool was flagged and where the text lives")));
+    ), 2), reveal(action(flagHref(specimen), "See why it was flagged"), 3));
   }
-  main.append(h("ul", { class: "facts" },
-    h("li", {}, h("b", {}, num(summary.servers)), h("span", {}, "registry entries")),
-    h("li", {}, h("b", {}, num(summary.repos_checked)), h("span", {}, "repositories checked")),
-    h("li", {}, h("b", {}, num(summary.tools_unique)), h("span", {}, "distinct tools read")),
-    h("li", {}, h("b", {}, num(counted.length)), h("span", {}, `flagged, ${num(highs)} of them high`)),
-  ));
+  main.append(reveal(h("ul", { class: "facts" },
+    h("li", {}, ticker(summary.servers), h("span", {}, "registry entries")),
+    h("li", {}, ticker(summary.repos_checked), h("span", {}, "repositories checked")),
+    h("li", {}, ticker(summary.tools_unique), h("span", {}, "distinct tools read")),
+    h("li", {}, ticker(counted.length), h("span", {}, `flagged, ${num(highs)} of them high`)),
+  ), 4));
 
   main.append(h("h2", { id: "flags" }, "Every flagged tool"),
     h("p", { class: "muted" }, "Each flag is an automated risk signal that deserves a human look. Many are harmless phrasing or security demos, and authors can dispute any result."));
   const signals = [...new Set(flags.flatMap((f) => f.findings.map((x) => x.signal)))].sort();
   const q = h("input", { type: "search", placeholder: "Tool, repository or phrase", "aria-label": "Filter flagged tools" });
-  const lvl = h("select", {}, h("option", { value: "" }, "All levels"), h("option", { value: "high" }, "High"),
-    h("option", { value: "medium" }, "Medium"), h("option", { value: "cleared" }, "Cleared by review"));
-  const sig = h("select", {}, h("option", { value: "" }, "All signals"),
+  const lvl = segmented("Level", [["", "All"], ["high", "High"], ["medium", "Medium"], ["cleared", "Cleared"]], () => apply());
+  const sig = h("select", { "aria-label": "Signal" }, h("option", { value: "" }, "All signals"),
     ...signals.map((s) => h("option", { value: s }, s.replaceAll("_", " "))), h("option", { value: "model" }, "classifier only"));
   const count = h("p", { class: "count", "aria-live": "polite" });
   const list = h("div");
@@ -243,15 +301,14 @@ async function viewHome(main) {
   const apply = () => {
     const needle = q.value.trim().toLowerCase();
     const hits = sorted.filter((f) =>
-      (!lvl.value || shownLevel(f) === lvl.value) &&
+      (!lvl.value() || shownLevel(f) === lvl.value()) &&
       (!sig.value || (sig.value === "model" ? !f.findings.length : f.findings.some((x) => x.signal === sig.value))) &&
       (!needle || `${f.name} ${f.repo_url} ${f.description}`.toLowerCase().includes(needle)));
     count.textContent = `Showing ${num(hits.length)} of ${num(flags.length)} flagged tools.`;
     pagedList(list, hits, flagRow, "No flagged tool matches these filters. Try a broader phrase or another level.");
   };
-  for (const el of [q, lvl, sig]) el.addEventListener("input", apply);
-  main.append(h("div", { class: "controls" },
-    h("label", { class: "grow" }, "Search", q), h("label", {}, "Level", lvl), h("label", {}, "Signal", sig)), count, list);
+  for (const el of [q, sig]) el.addEventListener("input", apply);
+  main.append(h("div", { class: "controls" }, searchField(q), lvl.el, h("span", { class: "select" }, sig)), count, list);
   apply();
 
   const runs = history.map((r) => r.generated_at);
@@ -277,13 +334,14 @@ async function viewServers(main, params) {
   const onlyFlagged = h("input", { type: "checkbox", checked: params.get("flagged") === "1" });
   const count = h("p", { class: "count", "aria-live": "polite" }, "Loading the server index, which takes a moment on slow connections.");
   const list = h("div");
-  main.append(h("div", { class: "controls" }, h("label", { class: "grow" }, "Search", q),
-    h("label", { class: "check" }, onlyFlagged, "Only servers with flags")), count, list);
+  main.append(h("div", { class: "controls" }, searchField(q),
+    h("label", { class: "toggle" }, onlyFlagged, "Only servers with flags")), count, list);
   const data = await servers();
   const render = (s) => h("li", {}, h("a", { class: "row", href: serverHref(s.name) },
-    s.flags ? levelTag(s.level) : h("span", { class: "side" }, LIST_STATUS[s.status] ?? `${num(s.tools)} tools`),
+    s.flags ? pill(s.level) : h("span", { class: "side pill-slot" }, LIST_STATUS[s.status] ?? `${num(s.tools)} tools`),
     h("span", { class: "name" }, s.name),
     h("span", { class: "side" }, s.flags ? `${s.flags} flagged` : ""),
+    chevron(),
     h("span", { class: "sub" }, s.description || s.title || repoShort(s.repo) || "No description in the registry."),
   ));
   const rank = { high: 0, medium: 1, none: 2 };
@@ -369,7 +427,7 @@ async function viewFlag(main, id) {
   main.append(reasons,
     h("h2", {}, "Think this is wrong?"),
     h("p", {}, "If you maintain this server and the text is harmless, open a dispute. The flag stays visible with a note until a person reviews it and either confirms or clears it."),
-    h("a", { class: "button", href: disputeUrl }, "Dispute this result on GitHub"));
+    action(disputeUrl, "Dispute this result on GitHub"));
 }
 
 function viewMethod(main) {
@@ -427,6 +485,12 @@ async function route() {
 }
 
 window.addEventListener("hashchange", route);
+document.addEventListener("keydown", (e) => {
+  const field = document.querySelector(".field input");
+  if (e.key !== "/" || !field || e.metaKey || e.ctrlKey || e.target.matches?.("input:not([type=radio]):not([type=checkbox]), select, textarea")) return;
+  e.preventDefault();
+  field.focus();
+});
 route();
 load("summary").then((s) => {
   document.getElementById("updated").textContent = `Data from the run on ${day(s.generated_at)}, refreshed every morning.`;
