@@ -306,6 +306,10 @@ def test_flagged_file_holds_only_flagged_tools_with_their_text(tmp_path):
         tool = tools[(r["server_name"], r["path"], r["line"], r["name"])]
         assert r["level"] in ("medium", "high")
         assert (r["description"], r["params"]) == (tool["description"], tool["params"])
+    distinct = {(r["repo_url"], r["path"], r["line"], r["name"]): r["level"] for r in flagged}
+    assert summary["flagged_unique"] == {
+        level: sum(v == level for v in distinct.values()) for level in ("high", "medium")
+    }
 
 
 def test_previous_snapshot_without_tools_is_not_reused(tmp_path):

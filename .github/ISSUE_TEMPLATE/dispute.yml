@@ -1,0 +1,39 @@
+name: Dispute a flag
+description: Ask for a human review of a tool that the scan flagged.
+title: "Dispute "
+labels: [dispute]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to look at this result. The flag stays visible with a note while a person reviews it, and the review either confirms the flag or clears it.
+  - type: input
+    id: flag
+    attributes:
+      label: Flag id
+      description: This is filled in when you open the form from the flag page.
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: Tool and source line
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Why the text is harmless
+      description: Explain what the flagged words do for users of the tool, and link to anything that helps.
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Your relationship to the server
+      options:
+        - I maintain this server
+        - I use this server
+        - Something else
+    validations:
+      required: true

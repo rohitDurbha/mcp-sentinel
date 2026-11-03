@@ -175,6 +175,14 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_site(args: argparse.Namespace) -> int:
+    from .sitedata import build_site
+
+    counts = build_site(args.data, args.out, static=args.static, disputes=args.disputes)
+    print(f"site built in {args.out} with {counts['servers']} servers and {counts['flags']} flags")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="mcp-sentinel")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -215,6 +223,13 @@ def main(argv: list[str] | None = None) -> int:
         "--budget-minutes", type=float, help="stop starting repos after this, rest stay pending"
     )
     p.set_defaults(func=cmd_pipeline)
+
+    p = sub.add_parser("site", help="build the static site from the public data branch")
+    p.add_argument("--data", type=Path, default=Path("public"), help="checkout of the data branch")
+    p.add_argument("--out", type=Path, default=Path("_site"))
+    p.add_argument("--static", type=Path, default=Path("site"))
+    p.add_argument("--disputes", type=Path, default=Path("datasets/disputes.json"))
+    p.set_defaults(func=cmd_site)
 
     args = parser.parse_args(argv)
     if args.command == "extract" and not (args.servers or args.repo):

@@ -16,6 +16,7 @@ mcp-sentinel extract --repo https://github.com/OWNER/REPO --out data/tools.jsonl
 mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl --model models/sentinel-lr-1.pkl
 python research/train_eval.py --tools data/bench_tools.jsonl data/attack_tools.jsonl   # retrain and re-evaluate
 mcp-sentinel pipeline --previous previous --out out --model models/sentinel-lr-1.pkl  # the daily run
+mcp-sentinel site --data public --out _site   # build the site from a checkout of the data branch
 ```
 
 ## Layout
@@ -33,10 +34,12 @@ src/mcp_sentinel/
   scoring.py       rules plus model into one record per tool
   redact.py        removes credential-looking strings before publication
   pipeline.py      daily run with commit-based caching and snapshot output
+  sitedata.py      compact JSON for the site, built from the public data branch
   cli.py           argparse entry point
+site/              static site, plain HTML, CSS and JS with no build step
 tests/             pytest suite, fixtures live in tests/fixtures
 research/          training and evaluation script for the classifier
-datasets/          hand labels and the list of attack repositories
+datasets/          hand labels, attack repositories and reviewed disputes
 models/            trained classifier used by the scan command
 docs/PLAN.md       phases, scope and exit criteria
 ```

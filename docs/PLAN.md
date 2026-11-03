@@ -76,6 +76,8 @@ A static site on GitHub Pages offers search, a page per server with flagged evid
 Exit criteria
 - The site loads from published data, works at phone width, and every flag links to its evidence.
 
+Status. Built and checked locally on the published data from the sixth run. The site is plain HTML, CSS and JavaScript with no build step, and `mcp-sentinel site` turns the data branch into four small JSON files. The home page needs about 480 KB of compressed data, and the 3.1 MB server index loads only for search and server pages. All 723 flags were opened in a headless browser, and each one showed its source link and the marked evidence. The pages had no horizontal scroll at 390 pixels wide. A `pages` workflow rebuilds the site after every successful daily run, and each flag page links to a GitHub issue form for disputes. Reviewed disputes live in `datasets/disputes.json`, where an open dispute adds a note and a cleared flag stops counting toward totals. The phase is done once the live GitHub Pages address serves the same result.
+
 ## Phase 6. Evaluation and write-up
 
 Error analysis, a findings write-up, and resume bullets backed by real numbers from the pipeline.

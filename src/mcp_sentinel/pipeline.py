@@ -296,6 +296,8 @@ def run_pipeline(
     write_json(out / "state.json", {"extractor_version": EXTRACTOR_VERSION, "jobs": state_jobs})
 
     levels = Counter(r["level"] for r in findings)
+    distinct = {(r["repo_url"], r["path"], r["line"], r["name"]): r["level"] for r in findings}
+    unique_levels = Counter(distinct.values())
     per_repo: dict[str, dict] = defaultdict(lambda: {"servers": set(), "tools": set()})
     for t in all_tools:
         per_repo[t.repo_url]["servers"].add(t.server_name)
@@ -321,6 +323,7 @@ def run_pipeline(
         "tools_unique": sum(len(v["tools"]) for v in per_repo.values()),
         "resolved_share": _share(all_tools),
         "levels": {k: levels[k] for k in ("high", "medium", "low", "none")},
+        "flagged_unique": {k: unique_levels[k] for k in FLAGGED[::-1]},
         "new_flags": sorted(now_flags - then_flags) if prev_dir else [],
         "cleared_flags": sorted(then_flags - now_flags) if prev_dir else [],
         "largest_repos": largest,
