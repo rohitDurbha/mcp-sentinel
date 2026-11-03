@@ -65,6 +65,10 @@ The third live run scored all 2,669,055 tools and then stopped while writing, be
 
 The fourth live run stopped after an hour of extraction, because a parameter with no name reached the new text cleanup as an empty value. The cleanup now accepts missing names, and any error inside one repository now marks that repository as `extract_failed` while the rest of the run carries on. The full output with every tool now lives in the Actions cache, since only the next run needs it. The data branch receives only the public files, which are the servers, the run state, the summary, the history and a new `flagged.jsonl.gz` that holds each flagged tool with its text. A previous snapshot without a tools file is never reused, so losing the cache simply means one full rescan.
 
+The fifth live run succeeded in 1 hour and 55 minutes and published the data branch for the first time. The registry listed 55,624 server entries, and 36,901 of them pointed at a repository. The run checked 29,593 repositories, cloned 25,571 and found tools for 23,832 entries. Those entries held 2,668,605 tools, but only 312,081 were distinct, because many entries share one repository. It flagged 723 distinct tools in 456 repositories, with 182 at high and 541 at medium. The largest public file was the 12.7 MB state file, and the flagged file was only 470 KB.
+
+The sixth live run started from the cache of the fifth and finished in 53 minutes. It reused 30,645 jobs, cloned only the 367 repositories whose commit had changed and reported no new or cleared flags. The fifth run was started by a push and the sixth by hand, which tests the same code path as the schedule. Phase 4 is done. Storing each repository folder once, instead of once per registry entry, would shrink the cache and the scoring time about eightfold, and it remains a sensible later improvement.
+
 ## Phase 5. Public site
 
 A static site on GitHub Pages offers search, a page per server with flagged evidence, trend charts and a methodology page with a dispute link.
