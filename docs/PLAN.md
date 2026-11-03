@@ -59,6 +59,8 @@ Status. Built and verified locally on the forty benchmark repositories. The firs
 
 The first live run against the full registry kept extracting for five hours and was cancelled at the job limit, so it published nothing. Parsing had been running on threads, which share a single core in Python, so parsing now runs in a process pool and was byte-identical to the threaded output on the benchmark repositories. Each run also has a time budget of 220 minutes, after which no new repository starts and the rest are published as pending for the next run. A budget test on the benchmark left 28 of 40 repositories pending, and the following run finished them with output identical to a single full run.
 
+The second live run checked 29,534 repositories in eight minutes and extracted all 25,515 that needed it in 74 minutes. It then lost the runner while scoring, because the classifier built character features for every tool in one matrix, and that matrix grew by about a gigabyte for every forty thousand tools. Scoring now runs in chunks of two thousand tools, and a test with 191,800 tools peaked at 0.35 GB of memory.
+
 ## Phase 5. Public site
 
 A static site on GitHub Pages offers search, a page per server with flagged evidence, trend charts and a methodology page with a dispute link.

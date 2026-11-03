@@ -258,7 +258,9 @@ def run_pipeline(
         all_tools.extend(tools)
 
     all_tools.sort(key=lambda t: (t.server_name or "", *t.sort_key()))
+    _log(f"scoring {len(all_tools)} tools")
     findings = score_tools(all_tools, model)
+    _log("writing outputs")
     prev_findings = read_gz_jsonl(prev_dir / "findings.jsonl.gz") if prev_dir else []
     now_flags, then_flags = _flag_ids(findings), _flag_ids(prev_findings)
 

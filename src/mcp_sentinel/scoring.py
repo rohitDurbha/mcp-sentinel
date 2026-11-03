@@ -20,8 +20,18 @@ def final_level(rule_level: str, model_flag: bool) -> str:
     return rule_level
 
 
+SCORE_CHUNK = 2_000  # character n-gram features for the whole registry do not fit in memory
+
+
 def score_tools(tools: list[Tool], model: Any = None) -> list[dict]:
     """One record per tool with rule findings, model output and the final level."""
+    results = []
+    for begin in range(0, len(tools), SCORE_CHUNK):
+        results.extend(_score_chunk(tools[begin : begin + SCORE_CHUNK], model))
+    return results
+
+
+def _score_chunk(tools: list[Tool], model: Any) -> list[dict]:
     texts: list[str] = []
     model_scores = None
     if model is not None:

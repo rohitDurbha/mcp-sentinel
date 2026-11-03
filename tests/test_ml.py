@@ -114,3 +114,36 @@ def test_threshold_for_fpr_respects_the_target():
     benign = np.linspace(0, 1, 1000)
     thr = threshold_for_fpr(benign, 0.01)
     assert (benign >= thr).mean() <= 0.01
+
+
+def test_scoring_feeds_the_model_in_bounded_chunks(monkeypatch):
+    import mcp_sentinel.scoring as scoring
+    from mcp_sentinel.models import Tool
+
+    monkeypatch.setattr(scoring, "SCORE_CHUNK", 3)
+    seen = []
+
+    class CountingModel:
+        version, threshold = "fake", 0.5
+
+        def decision(self, texts):
+            seen.append(len(texts))
+            return [0.0] * len(texts)
+
+    tools = [
+        Tool(
+            repo_url="https://github.com/a/b",
+            commit="c",
+            path="x.py",
+            line=i,
+            language="python",
+            pattern="p",
+            name=f"t{i}",
+            description="Adds numbers.",
+            description_resolved=True,
+        )
+        for i in range(7)
+    ]
+    records = scoring.score_tools(tools, CountingModel())
+    assert seen == [3, 3, 1]
+    assert [r["line"] for r in records] == list(range(7))
