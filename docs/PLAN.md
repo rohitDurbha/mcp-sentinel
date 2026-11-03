@@ -63,6 +63,8 @@ The second live run checked 29,534 repositories in eight minutes and extracted a
 
 The third live run scored all 2,669,055 tools and then stopped while writing, because some descriptions held half of an escaped emoji that UTF-8 cannot encode. Extraction now joins those pairs and replaces any lone half, which bumped the extractor to version 2. That run also showed that the full tools file would be about 500 MB compressed, far above the 100 MB GitHub allows for one file. The run output is now kept as a workflow artifact for three days, so the size problem can be studied with real data before the snapshot format changes.
 
+The fourth live run stopped after an hour of extraction, because a parameter with no name reached the new text cleanup as an empty value. The cleanup now accepts missing names, and any error inside one repository now marks that repository as `extract_failed` while the rest of the run carries on. The full output with every tool now lives in the Actions cache, since only the next run needs it. The data branch receives only the public files, which are the servers, the run state, the summary, the history and a new `flagged.jsonl.gz` that holds each flagged tool with its text. A previous snapshot without a tools file is never reused, so losing the cache simply means one full rescan.
+
 ## Phase 5. Public site
 
 A static site on GitHub Pages offers search, a page per server with flagged evidence, trend charts and a methodology page with a dispute link.

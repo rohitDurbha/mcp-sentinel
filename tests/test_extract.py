@@ -232,3 +232,13 @@ def test_escaped_surrogates_become_valid_text(tmp_path):
     (tool,) = extract_repo(tmp_path, repo_url="https://github.com/a/b", commit="c").tools
     assert tool.description == "Pair \U0001f600 and lone � end"
     tool.description.encode("utf-8")  # must not raise
+
+
+def test_unnamed_param_text_survives_cleanup(tmp_path):
+    from mcp_sentinel.extract import extract_repo
+
+    (tmp_path / "server.ts").write_text(
+        'server.tool("t", "Do t.", z.string().describe("Top level"), async () => ({}));\n'
+    )
+    (tool,) = extract_repo(tmp_path, repo_url="https://github.com/a/b", commit="c").tools
+    assert [(p.name, p.text) for p in tool.params] == [(None, "Top level")]

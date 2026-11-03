@@ -34,9 +34,20 @@ jobs:
       - name: Install
         run: pip install -e ".[ml]"
 
-      - name: Fetch the previous snapshot from the data branch
+      # The full output, with every tool, is too big for a git branch, so it lives in the
+      # Actions cache for the next run. The data branch only carries the public files.
+      - name: Restore the previous full output from the cache
+        uses: actions/cache/restore@v4
+        with:
+          path: out
+          key: snapshot-${{ github.run_id }}
+          restore-keys: snapshot-
+
+      - name: Use it as the previous snapshot, or fall back to the data branch
         run: |
-          if git ls-remote --exit-code --heads origin data >/dev/null; then
+          if [ -d out ]; then
+            mv out previous
+          elif git ls-remote --exit-code --heads origin data >/dev/null; then
             git fetch --depth 1 origin data
             mkdir previous
             git archive origin/data | tar -x -C previous
@@ -56,6 +67,12 @@ jobs:
           mcp-sentinel pipeline $PREV_ARG --out out --model models/sentinel-lr-1.pkl --workers 16 --budget-minutes 220 $LIMIT_ARG
           cat out/summary.json >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Save the full output for the next run
+        uses: actions/cache/save@v4
+        with:
+          path: out
+          key: snapshot-${{ github.run_id }}
+
       - name: Keep the run output as a downloadable artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -65,11 +82,13 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
 
-      - name: Publish the snapshot to the data branch
+      - name: Publish the public files to the data branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd out
+          mkdir public
+          cp out/servers.jsonl.gz out/flagged.jsonl.gz out/state.json out/summary.json out/history.jsonl public/
+          cd public
           big=$(find . -type f -size +95M)
           if [ -n "$big" ]; then echo "files too large for GitHub: $big"; ls -la; exit 1; fi
           git init -q -b data

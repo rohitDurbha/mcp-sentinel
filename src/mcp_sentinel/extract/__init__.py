@@ -71,8 +71,10 @@ def _parse(lang: Any, path: Path, source: bytes) -> Any:
     return lang.parse(source)
 
 
-def _valid(text: str) -> str:
+def _valid(text: str | None) -> str | None:
     """Join escaped surrogate pairs and replace lone halves, so the text encodes as UTF-8."""
+    if text is None:
+        return None
     return text.encode("utf-16", "surrogatepass").decode("utf-16", "replace")
 
 

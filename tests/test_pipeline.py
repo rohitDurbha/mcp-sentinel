@@ -136,6 +136,7 @@ def test_output_bytes_are_identical_for_identical_input(tmp_path):
         "servers.jsonl.gz",
         "tools.jsonl.gz",
         "findings.jsonl.gz",
+        "flagged.jsonl.gz",
         "state.json",
         "summary.json",
     ):
@@ -266,3 +267,52 @@ def test_summary_counts_unique_tools_and_names_the_largest_repos(tmp_path):
     assert summary["tools_unique"] < summary["tools"]
     top = summary["largest_repos"][0]
     assert top["repo_url"] == A and top["servers"] == 2 and top["tools"] > 0
+
+
+def test_extractor_crash_fails_one_repo_and_the_run_continues(tmp_path, monkeypatch, capsys):
+    import mcp_sentinel.pipeline as pipeline
+
+    real = pipeline.extract_repo
+
+    def flaky(path, *, repo_url, **kwargs):
+        if repo_url == B:
+            raise AttributeError("boom")
+        return real(path, repo_url=repo_url, **kwargs)
+
+    monkeypatch.setattr(pipeline, "extract_repo", flaky)
+    forge = FakeForge({A: "a" * 40, B: "b" * 40})
+    out, summary = run(forge, tmp_path, "day1")
+    assert summary["jobs"] == {"no_repo": 1, "ok": 1, "extract_failed": 1}
+    state = json.loads((out / "state.json").read_text())
+    failed = [j for j in state["jobs"].values() if j["status"] == "extract_failed"]
+    assert failed[0]["error"] == "AttributeError: boom"
+    assert "extract failed for https://github.com/acme/ts" in capsys.readouterr().err
+
+
+def test_flagged_file_holds_only_flagged_tools_with_their_text(tmp_path):
+    class PoisonedForge(FakeForge):
+        def clone(self, url, cache):
+            path, commit = super().clone(url, cache)
+            return (FIXTURES / "python3" if url == B else path), commit
+
+    forge = PoisonedForge({A: "a" * 40, B: "b" * 40})
+    out, summary = run(forge, tmp_path, "day1")
+    flagged = rows(out / "flagged.jsonl.gz")
+    assert len(flagged) == summary["levels"]["medium"] + summary["levels"]["high"] > 0
+    tools = {
+        (t["server_name"], t["path"], t["line"], t["name"]): t for t in rows(out / "tools.jsonl.gz")
+    }
+    for r in flagged:
+        tool = tools[(r["server_name"], r["path"], r["line"], r["name"])]
+        assert r["level"] in ("medium", "high")
+        assert (r["description"], r["params"]) == (tool["description"], tool["params"])
+
+
+def test_previous_snapshot_without_tools_is_not_reused(tmp_path):
+    forge = FakeForge({A: "a" * 40, B: "b" * 40})
+    day1, _ = run(forge, tmp_path, "day1")
+    (day1 / "tools.jsonl.gz").unlink()  # the public data branch carries no tools file
+    forge.cloned.clear()
+    day2, summary = run(forge, tmp_path, "day2", previous=day1)
+    assert sorted(forge.cloned) == [A, B] and summary["jobs_reused"] == 0
+    assert len((day2 / "history.jsonl").read_text().splitlines()) == 2

@@ -103,6 +103,14 @@ def _flag_ids(findings: list[dict]) -> set[str]:
     }
 
 
+def _flagged(tools: list[Tool], findings: list[dict]) -> Iterable[dict]:
+    """Flagged findings with the text they were found in, small enough to publish."""
+    for tool, record in zip(tools, findings, strict=True):
+        if record["level"] in FLAGGED:
+            text = {"description": tool.description, "params": tool.to_dict()["params"]}
+            yield record | text
+
+
 def _share(tools: list[Tool]) -> float | None:
     return round(sum(t.description_resolved for t in tools) / len(tools), 4) if tools else None
 
@@ -131,7 +139,11 @@ def run_pipeline(
     prev_dir = previous if previous is not None and Path(previous).is_dir() else None
     prev_state = _read_json(prev_dir / "state.json") if prev_dir else {}
     prev_jobs = prev_state.get("jobs", {})
-    same_extractor = prev_state.get("extractor_version") == EXTRACTOR_VERSION
+    # Reuse needs the previous tools, which live in the run cache and not on the public branch.
+    same_extractor = (
+        prev_state.get("extractor_version") == EXTRACTOR_VERSION
+        and (prev_dir / "tools.jsonl.gz").exists()
+    )
     prev_tools: dict[str, list[dict]] = defaultdict(list)
     for row in read_gz_jsonl(prev_dir / "tools.jsonl.gz") if prev_dir else []:
         prev_tools[row["server_name"]].append(row)
@@ -195,8 +207,16 @@ def run_pipeline(
         try:
             for j in to_extract[url]:
                 if j.subfolder not in by_folder:
-                    by_folder[j.subfolder] = extract(path, url, commit, j.subfolder)
+                    try:
+                        by_folder[j.subfolder] = extract(path, url, commit, j.subfolder)
+                    except Exception as exc:  # one odd repo must not sink the whole run
+                        by_folder[j.subfolder] = f"{type(exc).__name__}: {exc}"
+                        _log(f"extract failed for {url}: {by_folder[j.subfolder]}")
                 ex = by_folder[j.subfolder]
+                if isinstance(ex, str):
+                    failed = {"status": "extract_failed", "commit": commit, "error": ex}
+                    results.append((j, failed, []))
+                    continue
                 status = "ok" if ex.files_scanned else "no_supported_source"
                 info = {"status": status, "commit": commit, "files_scanned": ex.files_scanned}
                 tools = [replace(t, server_name=j.server_name) for t in ex.tools]
@@ -272,6 +292,7 @@ def run_pipeline(
     )
     write_gz_jsonl(out / "tools.jsonl.gz", (t.to_dict() for t in all_tools))
     write_gz_jsonl(out / "findings.jsonl.gz", findings)
+    write_gz_jsonl(out / "flagged.jsonl.gz", _flagged(all_tools, findings))
     write_json(out / "state.json", {"extractor_version": EXTRACTOR_VERSION, "jobs": state_jobs})
 
     levels = Counter(r["level"] for r in findings)
