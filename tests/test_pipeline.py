@@ -337,3 +337,13 @@ def test_watch_tier_is_published_but_not_counted_as_flagged(tmp_path):
     forge = FakeForge({A: "a" * 40, B: "b" * 40})
     _, summary = run(forge, tmp_path, "day1")
     assert summary["levels"]["watch"] == 0 and summary["flagged_unique"]["watch"] == 0
+
+
+def test_run_stops_when_most_commit_checks_fail(tmp_path):
+    # A doubled auth header once made nearly every commit check fail with HTTP 400, and the run
+    # published 37,122 registry entries as stale or unreachable. Such a run must stop instead.
+    forge = FakeForge({A: "a" * 40, B: "b" * 40})
+    forge.down.update({A, B})
+    with pytest.raises(RuntimeError, match="commit checks failed"):
+        run(forge, tmp_path, "day1")
+    assert not (tmp_path / "day1" / "summary.json").exists()

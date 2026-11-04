@@ -35,6 +35,7 @@ PUBLISHED = ("watch", *FLAGGED)  # the watch tier is shown for review but never 
 PROGRESS_EVERY = 100
 LARGEST_REPOS = 25
 SLOW_REPO_SECONDS = 60
+MAX_HEAD_FAILURES = 0.5  # a normal day sees about one repository in six unreachable
 
 
 @dataclass(frozen=True)
@@ -161,6 +162,11 @@ def run_pipeline(
     started = time.monotonic()
     with ThreadPoolExecutor(max_workers=workers) as pool:
         heads = {url: (sha, err) for url, sha, err in pool.map(head, urls)}
+    failed = sum(1 for sha, _ in heads.values() if not sha)
+    if urls and failed / len(urls) > MAX_HEAD_FAILURES:
+        raise RuntimeError(
+            f"{failed} of {len(urls)} commit checks failed, so the last data is kept"
+        )
     stuck = sum(1 for _, err in heads.values() if err and "timed out" in err)
     took = time.monotonic() - started
     _log(f"heads checked for {len(urls)} repos in {took:.0f}s, {stuck} timed out")
