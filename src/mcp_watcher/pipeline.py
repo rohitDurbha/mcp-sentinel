@@ -160,7 +160,9 @@ def run_pipeline(
     started = time.monotonic()
     with ThreadPoolExecutor(max_workers=workers) as pool:
         heads = {url: (sha, err) for url, sha, err in pool.map(head, urls)}
-    _log(f"heads checked for {len(urls)} repos in {time.monotonic() - started:.0f}s")
+    stuck = sum(1 for _, err in heads.values() if err and "timed out" in err)
+    took = time.monotonic() - started
+    _log(f"heads checked for {len(urls)} repos in {took:.0f}s, {stuck} timed out")
 
     def reusable(job: Job) -> bool:
         prev = prev_jobs.get(job.key)
