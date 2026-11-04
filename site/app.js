@@ -201,6 +201,173 @@ function pagedList(container, items, render, emptyText) {
   container.append(list, h("div", { class: "pager-bar" }, range, pages > 1 ? nav : null));
 }
 
+/* Insights. Linked bar charts over the flagged tools, where a click on any bar filters every
+   other chart and the list of matching tools. Each chart ignores its own filter, so the other
+   choices stay visible while one is picked. */
+
+const SIGNAL_NAMES = {
+  secrecy: "Secrecy from the user", sensitive_path: "Sensitive files", hidden_block: "Hidden instructions",
+  exfiltration: "Sending data out", override: "Instruction override", long_text: "Unusually long text",
+  cross_tool: "Steering other tools", coercion: "Pressure to act first", invisible_unicode: "Invisible characters",
+};
+const CAUGHT_NAMES = { both: "Rules and classifier", rules: "Rules only", model: "Classifier only" };
+const WHERE_NAMES = { description: "Description", param: "Parameters", both: "Description and parameters", none: "No rule match" };
+const OUTCOME_NAMES = {
+  ok: "Scanned, tools found", no_supported_source: "No supported source code", no_repo: "No repository listed",
+  unreachable: "Repository unreachable", clone_failed: "Download failed", extract_failed: "Scanner error",
+  pending: "Queued for the next run", stale: "Last good scan reused",
+};
+const pct = (part, whole) => `${whole ? ((100 * part) / whole).toFixed(part / whole < 0.01 ? 2 : 1) : 0}%`;
+
+function traits(f) {
+  const rules = f.rule_level === "medium" || f.rule_level === "high";
+  const model = Boolean(f.model?.flag);
+  const fields = new Set(f.findings.map((x) => (x.field.startsWith("param:") ? "param" : "description")));
+  return {
+    level: f.level,
+    signal: [...new Set(f.findings.map((x) => x.signal))],
+    rule: [...new Set(f.findings.map((x) => x.rule))],
+    caught: rules && model ? "both" : rules ? "rules" : "model",
+    where: fields.size === 2 ? "both" : fields.size ? [...fields][0] : "none",
+    bin: Math.min(9, Math.floor((f.model?.score ?? 0) * 10)),
+    repo: repoShort(f.repo_url),
+  };
+}
+
+function insights(flags, summary) {
+  const items = flags.map((f) => ({ f, t: traits(f) }));
+  const ruleNames = new Map(flags.flatMap((f) => f.findings.map((x) => [x.rule, x.message])));
+  const picked = {};
+  const has = (t, dim, value) => (Array.isArray(t[dim]) ? t[dim].includes(value) : t[dim] === value);
+  const matching = (except) => items.filter(({ t }) =>
+    Object.entries(picked).every(([dim, value]) => dim === except || has(t, dim, value)));
+  const pick = (dim, value) => {
+    if (picked[dim] === value) delete picked[dim];
+    else picked[dim] = value;
+    update();
+  };
+
+  // One bar per row, stacked by level when the bars count flagged tools.
+  const bars = (dim, rows, { stacked = true, clickable = true } = {}) => {
+    const max = Math.max(1, ...rows.map((r) => r.total));
+    return h("div", { class: `bars${dim in picked ? " has-pick" : ""}` }, rows.map((r) => {
+      const fills = stacked
+        ? [["high", r.high], ["medium", r.medium]].filter(([, n]) => n).map(([lvl, n]) => h("span", { class: `fill ${lvl}`, style: `width:${(100 * n) / max}%` }))
+        : [h("span", { class: "fill", style: `width:${(100 * r.total) / max}%` })];
+      const tip = stacked ? `${r.label}. ${num(r.total)} tools, ${num(r.high)} high and ${num(r.medium)} medium.` : `${r.label}. ${num(r.total)} entries, ${r.share}.`;
+      const kids = [h("span", { class: "bar-label" }, r.label), h("span", { class: "bar-value" }, stacked ? num(r.total) : `${num(r.total)}  ${r.share}`), h("span", { class: "bar-track" }, fills)];
+      return clickable
+        ? h("button", { type: "button", class: "bar", "data-tip": tip, "aria-pressed": String(picked[dim] === r.key), onclick: () => pick(dim, r.key) }, kids)
+        : h("div", { class: "bar static", "data-tip": tip }, kids);
+    }));
+  };
+  const count = (dim, keys, label) => {
+    const pool = matching(dim);
+    return keys.map((key) => {
+      const hits = pool.filter(({ t }) => has(t, dim, key));
+      const high = hits.filter(({ t }) => t.level === "high").length;
+      return { key, label: label(key), total: hits.length, high, medium: hits.length - high };
+    });
+  };
+  const top = (dim, n, label) => {
+    const tally = new Map();
+    for (const { t } of matching(dim)) for (const v of [t[dim]].flat()) tally.set(v, (tally.get(v) || 0) + 1);
+    const keys = [...tally].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]))).slice(0, n).map(([k]) => k);
+    if (dim in picked && !keys.includes(picked[dim])) keys.push(picked[dim]);
+    return count(dim, keys, label);
+  };
+  const sortedKeys = (dim) => {
+    const totals = new Map();
+    for (const { t } of items) for (const v of [t[dim]].flat()) totals.set(v, (totals.get(v) || 0) + 1);
+    return [...totals].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  };
+
+  const histogram = () => {
+    const rows = count("bin", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], (b) => `Score ${(b / 10).toFixed(1)} to ${((b + 1) / 10).toFixed(1)}`);
+    const max = Math.max(1, ...rows.map((r) => r.total));
+    return h("div", {},
+      h("div", { class: `hist${"bin" in picked ? " has-pick" : ""}` }, rows.map((r) => h("button", {
+        type: "button", class: "col", "aria-pressed": String(picked.bin === r.key), "aria-label": `${r.label}, ${r.total} tools`,
+        "data-tip": `${r.label}. ${num(r.total)} tools, ${num(r.high)} high and ${num(r.medium)} medium.`, onclick: () => pick("bin", r.key),
+      }, [["high", r.high], ["medium", r.medium]].filter(([, n]) => n).map(([lvl, n]) => h("span", { class: `seg ${lvl}`, style: `height:${(100 * n) / max}%` }))))),
+      h("div", { class: "hist-axis", "aria-hidden": "true" }, h("span", {}, "0"), h("span", {}, "0.5"), h("span", {}, "1")));
+  };
+
+  const level = segmented("Insight level", [["", "All"], ["high", "High"], ["medium", "Medium"]], () => {
+    const v = level.value();
+    if (v) picked.level = v;
+    else delete picked.level;
+    update();
+  });
+  const chips = h("div", { class: "chips", "aria-live": "polite" });
+  const grid = h("div", { class: "insights" });
+  const list = h("div", { class: "results" });
+  const card = (title, body, wide) => h("section", { class: `card${wide ? " wide" : ""}` }, h("h3", {}, title), body);
+  const LABELS = {
+    signal: (k) => SIGNAL_NAMES[k] || k, rule: (k) => ruleNames.get(k) || k, caught: (k) => CAUGHT_NAMES[k],
+    where: (k) => WHERE_NAMES[k], repo: (k) => k, bin: (k) => `Classifier score ${(k / 10).toFixed(1)} to ${((k + 1) / 10).toFixed(1)}`,
+  };
+
+  function update() {
+    const shown = matching();
+    chips.replaceChildren(
+      h("span", { class: "chips-count" }, `${num(shown.length)} of ${num(items.length)} flagged tools`),
+      ...Object.entries(picked).filter(([dim]) => dim !== "level").map(([dim, value]) =>
+        h("button", { type: "button", class: "chip-x", "aria-label": `Remove filter ${LABELS[dim](value)}`, onclick: () => pick(dim, value) }, LABELS[dim](value), h("span", { "aria-hidden": "true" }, "×"))),
+      Object.keys(picked).length ? h("button", { type: "button", class: "clear", onclick: () => {
+        for (const k of Object.keys(picked)) delete picked[k];
+        level.el.querySelector('input[value=""]').checked = true;
+        update();
+      } }, "Clear filters") : "",
+    );
+    grid.replaceChildren(
+      card("Signal family", bars("signal", count("signal", sortedKeys("signal"), LABELS.signal))),
+      card("Most common rules", bars("rule", top("rule", 8, LABELS.rule))),
+      card("How it was caught", bars("caught", count("caught", ["both", "rules", "model"], LABELS.caught))),
+      card("Where the evidence sits", bars("where", count("where", sortedKeys("where"), LABELS.where))),
+      card("Classifier score", histogram()),
+      card("Repositories with the most flags", bars("repo", top("repo", 8, LABELS.repo))),
+    );
+    pagedList(list, shown.map(({ f }) => f), flagRow, "No flagged tool matches every filter. Remove one to widen the view.");
+  }
+
+  const jobs = Object.entries(summary.jobs || {}).sort((a, b) => b[1] - a[1]);
+  const totalJobs = jobs.reduce((n, [, v]) => n + v, 0);
+  const outcomes = bars("outcome", jobs.map(([key, total]) => ({ key, total, label: OUTCOME_NAMES[key] || key, share: pct(total, totalJobs) })), { stacked: false, clickable: false });
+
+  const section = h("section", { class: "insight-section", "aria-labelledby": "inside" },
+    h("h2", { id: "inside" }, "Inside the scan"),
+    h("div", { class: "insights" }, card(`What happened to ${num(totalJobs)} registry entries`, outcomes, true)),
+    h("h3", { class: "explore" }, "Explore the flags"),
+    h("div", { class: "filterbar" }, level.el, chips, h("span", { class: "legend-mini", "aria-hidden": "true" }, pill("high"), pill("medium"))),
+    grid, list);
+
+  const tip = h("div", { class: "floattip", role: "tooltip", hidden: true });
+  section.append(tip);
+  const place = (target, x, y) => {
+    tip.textContent = target.dataset.tip;
+    tip.hidden = false;
+    const box = section.getBoundingClientRect();
+    const left = Math.min(Math.max(x - box.left + 14, 0), box.width - tip.offsetWidth);
+    tip.style.transform = `translate(${left}px, ${y - box.top + 16}px)`;
+  };
+  section.addEventListener("pointermove", (e) => {
+    const target = e.target.closest?.("[data-tip]");
+    if (target && e.pointerType === "mouse") place(target, e.clientX, e.clientY);
+    else tip.hidden = true;
+  });
+  section.addEventListener("pointerleave", () => { tip.hidden = true; });
+  section.addEventListener("focusin", (e) => {
+    const target = e.target.closest?.("[data-tip]");
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    place(target, r.left, r.bottom - 8);
+  });
+  section.addEventListener("focusout", () => { tip.hidden = true; });
+  update();
+  return section;
+}
+
 /* Trend chart. One y axis, thin lines, markers, direct labels, a legend, hover and a table. */
 
 function lineChart({ title, series, format = num }) {
@@ -329,6 +496,7 @@ async function viewHome(main) {
   apply();
 
   const runs = history.map((r) => r.generated_at);
+  main.append(insights(counted, summary));
   main.append(h("h2", {}, "Over time"), h("div", { class: "charts" },
     lineChart({
       title: "Distinct flagged tools by level",

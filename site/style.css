@@ -263,3 +263,57 @@ figure.chart figcaption { font-weight: 600; margin-bottom: 4px; }
 .row .pill-slot { grid-row: 1 / 3; text-align: left; white-space: normal; }
 @media (max-width: 560px) { .row .pill-slot { grid-row: auto; grid-column: 1 / 3; } }
 @media (hover: none) { kbd { display: none; } }
+
+/* Inside the scan. Linked bar charts, colored only by level, with values always on screen. */
+.insight-section { position: relative; }
+.insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 14px; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; padding: 16px 18px 14px; min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.card h3 { margin: 0 0 10px; font-size: 0.95rem; }
+h3.explore { margin-top: 32px; font-size: 1.05rem; }
+.filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 10px 0 14px; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1 1 16rem; }
+.chips-count { color: var(--ink-2); font-size: 0.9rem; font-variant-numeric: tabular-nums; margin-right: 4px; }
+.chip-x, .clear {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; font: 500 0.85rem/1.2 var(--sans);
+  color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); border-radius: 999px; padding: 5px 10px; cursor: pointer;
+}
+.chip-x span { color: var(--ink-2); font-size: 1rem; line-height: 0.8; }
+.chip-x:hover, .clear:hover { border-color: var(--ink-2); }
+.clear { background: transparent; color: var(--ink-2); border-style: dashed; }
+.legend-mini { display: flex; gap: 6px; }
+
+.bars { display: flex; flex-direction: column; gap: 2px; }
+.bar {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; align-items: baseline;
+  width: calc(100% + 16px); margin: 0 -8px; padding: 6px 8px; border: 0; border-radius: 8px;
+  background: none; color: var(--ink); font: inherit; text-align: left;
+}
+button.bar { cursor: pointer; }
+button.bar:hover { background: var(--paper); }
+.bar-label { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-value { font-size: 0.85rem; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: pre; }
+.bar-track { grid-column: 1 / -1; display: flex; gap: 2px; height: 8px; }
+.fill { height: 100%; background: var(--link); border-radius: 0 4px 4px 0; transition: width 250ms ease; }
+.fill:not(:last-child) { border-radius: 0; }
+.fill.high, .seg.high { background: var(--high); }
+.fill.medium, .seg.medium { background: var(--medium); }
+.bars.has-pick .bar[aria-pressed="false"], .hist.has-pick .col[aria-pressed="false"] { opacity: 0.38; }
+.bar[aria-pressed="true"] .bar-label { font-weight: 650; }
+
+.hist { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; height: 230px; align-items: stretch; }
+.col {
+  display: flex; flex-direction: column-reverse; gap: 2px; padding: 0; border: 0; border-radius: 6px 6px 0 0;
+  background: transparent; cursor: pointer; border-bottom: 1px solid var(--rule);
+}
+.col:hover { background: var(--paper); }
+.seg { width: 100%; transition: height 250ms ease; }
+.seg:last-child { border-radius: 4px 4px 0 0; }
+.hist-axis { display: flex; justify-content: space-between; color: var(--ink-2); font-size: 0.8rem; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+.floattip {
+  position: absolute; left: 0; top: 0; z-index: 5; max-width: 18rem; pointer-events: none;
+  background: var(--ink); color: var(--paper); font-size: 0.82rem; line-height: 1.4; padding: 6px 10px; border-radius: 8px;
+}
+@media (prefers-reduced-motion: reduce) { .fill, .seg { transition: none; } }
+.insight-section .results { margin-top: 14px; }
