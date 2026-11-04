@@ -1,6 +1,6 @@
 "use strict";
 
-const REPO = "https://github.com/rohitDurbha/mcp-sentinel";
+const REPO = "https://github.com/rohitDurbha/mcp-watcher";
 const PER_PAGE = 15;
 const LEVEL_WORDS = { high: "High risk signal", medium: "Medium risk signal", cleared: "Cleared by review" };
 const STATUS_WORDS = {
@@ -756,7 +756,7 @@ async function route() {
   if (parts.length) main.focus({ preventScroll: true });
   window.scrollTo(0, 0);
   const title = main.querySelector("h1")?.textContent;
-  document.title = parts.length && title ? `${title} | MCP Sentinel` : "MCP Sentinel";
+  document.title = parts.length && title ? `${title} | MCP Watcher` : "MCP Watcher";
 }
 
 window.addEventListener("hashchange", route);

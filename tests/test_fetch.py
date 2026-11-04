@@ -1,6 +1,6 @@
 import pytest
 
-from mcp_sentinel.fetch import normalize_repo_url
+from mcp_watcher.fetch import normalize_repo_url
 
 
 @pytest.mark.parametrize(

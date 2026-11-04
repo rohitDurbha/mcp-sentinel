@@ -1,6 +1,8 @@
-# Model card for sentinel-lr-1
+# Model card for watcher-lr-1
 
-sentinel-lr-1 scores the text of an MCP tool for signs of tool poisoning. Tool poisoning means a description or parameter description that tries to turn the model against the person using it, for example by asking it to read private files, send data away, change how other tools behave, or hide what it is doing. All numbers below come from `research/train_eval.py` with seed 20261102, and the raw results live in `docs/results/phase3.json`.
+This model was named sentinel-lr-1 until the project was renamed to MCP Watcher in November 2026. The file was saved again under the new name with the same fitted weights, and its scores on 725 test texts matched the old file exactly. The raw results in `docs/results/phase3.json` keep the old name because they record the original run.
+
+watcher-lr-1 scores the text of an MCP tool for signs of tool poisoning. Tool poisoning means a description or parameter description that tries to turn the model against the person using it, for example by asking it to read private files, send data away, change how other tools behave, or hide what it is doing. All numbers below come from `research/train_eval.py` with seed 20261102, and the raw results live in `docs/results/phase3.json`.
 
 ## What the model is
 
@@ -64,8 +66,8 @@ The real test set is small, so every number here carries wide uncertainty. Synth
 
 ```bash
 uv pip install -e ".[dev,ml]"
-mcp-sentinel extract $(sed 's/^/--repo /' docs/benchmark_repos.txt) --out data/bench_tools.jsonl --report data/bench_report.jsonl
-mcp-sentinel extract $(sed 's/^/--repo /' datasets/attack_repos.txt) --out data/attack_tools.jsonl --report data/attack_report.jsonl
+mcp-watcher extract $(sed 's/^/--repo /' docs/benchmark_repos.txt) --out data/bench_tools.jsonl --report data/bench_report.jsonl
+mcp-watcher extract $(sed 's/^/--repo /' datasets/attack_repos.txt) --out data/attack_tools.jsonl --report data/attack_report.jsonl
 python research/train_eval.py --tools data/bench_tools.jsonl data/attack_tools.jsonl
-mcp-sentinel scan --tools data/bench_tools.jsonl --out data/findings.jsonl --model models/sentinel-lr-1.pkl
+mcp-watcher scan --tools data/bench_tools.jsonl --out data/findings.jsonl --model models/watcher-lr-1.pkl
 ```

@@ -29,7 +29,7 @@ SIGNAL_NAMES = (
     "hidden_block", "secrecy", "sensitive_path", "exfiltration", "override",
     "coercion", "cross_tool", "invisible_unicode", "long_text",
 )  # fmt: skip
-MODEL_VERSION = "sentinel-lr-1"
+MODEL_VERSION = "watcher-lr-1"
 
 
 def rule_features(text: str) -> list[float]:
@@ -42,7 +42,7 @@ def rule_features(text: str) -> list[float]:
 
 
 @dataclass
-class SentinelModel:
+class WatcherModel:
     use_text: bool = True
     use_rules: bool = True
     C: float = 2.0
@@ -67,7 +67,7 @@ class SentinelModel:
             blocks.append(csr_matrix(np.array([rule_features(t) for t in texts]) * 3.0))
         return hstack(blocks).tocsr()
 
-    def fit(self, texts: list[str], labels: list[int]) -> SentinelModel:
+    def fit(self, texts: list[str], labels: list[int]) -> WatcherModel:
         X = self._features(texts, fit=True)
         self.clf = LogisticRegression(C=self.C, class_weight="balanced", max_iter=4000)
         self.clf.fit(X, np.asarray(labels))
@@ -94,7 +94,7 @@ class SentinelModel:
         Path(path).write_bytes(pickle.dumps(self, protocol=5))
 
     @staticmethod
-    def load(path: Path) -> SentinelModel:
+    def load(path: Path) -> WatcherModel:
         # Only ever load model files produced by this project's own training script.
         return pickle.loads(Path(path).read_bytes())
 
@@ -112,4 +112,4 @@ def threshold_for_fpr(benign_scores: np.ndarray, target_fpr: float) -> float:
     return float(ordered[allowed]) + 1e-9 if allowed < len(ordered) else 0.0
 
 
-__all__ = ["SentinelModel", "rule_features", "threshold_for_fpr", "tool_text"]
+__all__ = ["WatcherModel", "rule_features", "threshold_for_fpr", "tool_text"]

@@ -122,9 +122,9 @@ def cmd_scan(args: argparse.Namespace) -> int:
     tools = [tool_from_row(row) for row in read_jsonl(args.tools)]
     model = None
     if args.model:
-        from .model import SentinelModel
+        from .model import WatcherModel
 
-        model = SentinelModel.load(args.model)
+        model = WatcherModel.load(args.model)
     results = score_tools(tools, model)
     write_jsonl(args.out, results)
     levels = Counter(r["level"] for r in results)
@@ -154,9 +154,9 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
         servers = sorted(servers, key=lambda s: s.name)[: args.limit]
     model = None
     if args.model:
-        from .model import SentinelModel
+        from .model import WatcherModel
 
-        model = SentinelModel.load(args.model)
+        model = WatcherModel.load(args.model)
     now = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     summary = run_pipeline(
         servers,
@@ -184,7 +184,7 @@ def cmd_site(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="mcp-sentinel")
+    parser = argparse.ArgumentParser(prog="mcp-watcher")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("discover", help="list servers from the official MCP registry")
@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("scan", help="score extracted tools with the rule-based signals")
     p.add_argument("--tools", type=Path, default=Path("data/tools.jsonl"))
     p.add_argument("--out", type=Path, default=Path("data/findings.jsonl"))
-    p.add_argument("--model", type=Path, help="classifier file, e.g. models/sentinel-lr-1.pkl")
+    p.add_argument("--model", type=Path, help="classifier file, e.g. models/watcher-lr-1.pkl")
     p.set_defaults(func=cmd_scan)
 
     p = sub.add_parser("pipeline", help="daily run with commit-based caching")
@@ -214,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=Path("out"))
     p.add_argument("--servers", type=Path, help="use this servers.jsonl instead of the registry")
     p.add_argument("--base-url", default=registry.DEFAULT_BASE_URL)
-    p.add_argument("--model", type=Path, help="classifier file, e.g. models/sentinel-lr-1.pkl")
+    p.add_argument("--model", type=Path, help="classifier file, e.g. models/watcher-lr-1.pkl")
     p.add_argument("--cache", type=Path, default=Path(".cache/pipeline"))
     p.add_argument("--workers", type=int, default=16)
     p.add_argument("--limit", type=int, help="process only the first N servers by name")

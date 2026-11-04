@@ -11,7 +11,7 @@ from .fetch import normalize_repo_url
 from .models import Server
 
 DEFAULT_BASE_URL = "https://registry.modelcontextprotocol.io"
-USER_AGENT = "mcp-sentinel/0.1 (+https://github.com/rohitDurbha/mcp-sentinel)"
+USER_AGENT = "mcp-watcher/0.1 (+https://github.com/rohitDurbha/mcp-watcher)"
 _OFFICIAL = "io.modelcontextprotocol.registry/official"
 _RETRY_STATUS = {429, 500, 502, 503, 504}
 

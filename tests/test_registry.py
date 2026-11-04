@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 
-from mcp_sentinel.registry import iter_servers
+from mcp_watcher.registry import iter_servers
 
 FIXTURES = Path(__file__).parent / "fixtures" / "registry"
 

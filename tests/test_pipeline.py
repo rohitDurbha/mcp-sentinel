@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from mcp_sentinel.fetch import FetchError
-from mcp_sentinel.models import Server
-from mcp_sentinel.pipeline import Sources, run_pipeline
+from mcp_watcher.fetch import FetchError
+from mcp_watcher.models import Server
+from mcp_watcher.pipeline import Sources, run_pipeline
 
 FIXTURES = Path(__file__).parent / "fixtures"
 A, B = "https://github.com/acme/py", "https://github.com/acme/ts"
@@ -123,7 +123,7 @@ def test_extractor_version_change_invalidates_the_cache(tmp_path, monkeypatch):
     forge = FakeForge({A: "a" * 40, B: "b" * 40})
     day1, _ = run(forge, tmp_path, "day1")
     forge.cloned.clear()
-    monkeypatch.setattr("mcp_sentinel.pipeline.EXTRACTOR_VERSION", "999")
+    monkeypatch.setattr("mcp_watcher.pipeline.EXTRACTOR_VERSION", "999")
     run(forge, tmp_path, "day2", previous=day1)
     assert sorted(forge.cloned) == [A, B]
 
@@ -159,7 +159,7 @@ def test_missing_previous_directory_is_a_first_run(tmp_path, bad):
 
 
 def test_shared_repo_folder_is_extracted_once_for_all_its_servers(tmp_path, monkeypatch):
-    import mcp_sentinel.pipeline as pipeline
+    import mcp_watcher.pipeline as pipeline
 
     calls = []
     real = pipeline.extract_repo
@@ -270,7 +270,7 @@ def test_summary_counts_unique_tools_and_names_the_largest_repos(tmp_path):
 
 
 def test_extractor_crash_fails_one_repo_and_the_run_continues(tmp_path, monkeypatch, capsys):
-    import mcp_sentinel.pipeline as pipeline
+    import mcp_watcher.pipeline as pipeline
 
     real = pipeline.extract_repo
 

@@ -1,6 +1,6 @@
 import pytest
 
-from mcp_sentinel.redact import redact
+from mcp_watcher.redact import redact
 
 # Fake credentials built at runtime so this file never contains a real-looking secret.
 AWS = "AKIA" + "ABCDEFGHIJKLMNOP"

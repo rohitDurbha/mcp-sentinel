@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from mcp_sentinel.extract import extract_repo
+from mcp_watcher.extract import extract_repo
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -217,14 +217,14 @@ def test_python_tool_like_constructors():
 
 
 def test_python_parse_is_silent_on_invalid_escapes(recwarn):
-    from mcp_sentinel.extract import python
+    from mcp_watcher.extract import python
 
     assert python.parse(b'PATTERN = "\\d+"\n') is not None
     assert not [w for w in recwarn if issubclass(w.category, SyntaxWarning)]
 
 
 def test_escaped_surrogates_become_valid_text(tmp_path):
-    from mcp_sentinel.extract import extract_repo
+    from mcp_watcher.extract import extract_repo
 
     (tmp_path / "server.ts").write_text(
         'server.tool("smile", "Pair \\uD83D\\uDE00 and lone \\uD83D end", {}, async () => ({}));\n'
@@ -235,7 +235,7 @@ def test_escaped_surrogates_become_valid_text(tmp_path):
 
 
 def test_unnamed_param_text_survives_cleanup(tmp_path):
-    from mcp_sentinel.extract import extract_repo
+    from mcp_watcher.extract import extract_repo
 
     (tmp_path / "server.ts").write_text(
         'server.tool("t", "Do t.", z.string().describe("Top level"), async () => ({}));\n'

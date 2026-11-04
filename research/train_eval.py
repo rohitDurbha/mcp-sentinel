@@ -3,7 +3,7 @@
 Usage:
     python research/train_eval.py --tools data/bench_tools.jsonl data/attack_tools.jsonl
 
-Writes docs/results/phase3.json and models/sentinel-lr-1.pkl. Every random choice is
+Writes docs/results/phase3.json and models/watcher-lr-1.pkl. Every random choice is
 seeded, so the numbers in the model card can be reproduced exactly.
 """
 
@@ -19,11 +19,11 @@ import numpy as np
 from sklearn.metrics import average_precision_score
 from sklearn.model_selection import GroupKFold
 
-from mcp_sentinel.dataset import Row, load_labels, model_text, real_rows, split_of
-from mcp_sentinel.model import SentinelModel, threshold_for_fpr
-from mcp_sentinel.signals import scan_text
-from mcp_sentinel.signals import score as rule_score
-from mcp_sentinel.synth import ATTACK_FAMILIES, benign_variant, poison
+from mcp_watcher.dataset import Row, load_labels, model_text, real_rows, split_of
+from mcp_watcher.model import WatcherModel, threshold_for_fpr
+from mcp_watcher.signals import scan_text
+from mcp_watcher.signals import score as rule_score
+from mcp_watcher.synth import ATTACK_FAMILIES, benign_variant, poison
 
 SEED = 20261102
 TARGET_FPR = 0.01
@@ -66,7 +66,7 @@ def oof_threshold(variant: dict, rows: list[Row]) -> float:
     real_benign = np.array([r.source == "real" and r.label == 0 for r in rows])
     oof = np.zeros(len(rows))
     for tr, te in GroupKFold(n_splits=5).split(texts, labels, groups):
-        m = SentinelModel(**variant).fit([texts[i] for i in tr], labels[tr])
+        m = WatcherModel(**variant).fit([texts[i] for i in tr], labels[tr])
         oof[te] = m.decision([texts[i] for i in te])
     return threshold_for_fpr(oof[real_benign], TARGET_FPR)
 
@@ -110,7 +110,7 @@ def main() -> None:
     ap.add_argument("--tools", nargs="+", type=Path, required=True)
     ap.add_argument("--labels", type=Path, default=Path("datasets/labels.json"))
     ap.add_argument("--out", type=Path, default=Path("docs/results/phase3.json"))
-    ap.add_argument("--model", type=Path, default=Path("models/sentinel-lr-1.pkl"))
+    ap.add_argument("--model", type=Path, default=Path("models/watcher-lr-1.pkl"))
     args = ap.parse_args()
 
     rows, dropped = real_rows(args.tools, load_labels(args.labels))
@@ -149,7 +149,7 @@ def main() -> None:
     e1["rules_missed_keys"] = [test[i].key for i in rules_missed]
     for name, variant in variants.items():
         thr = oof_threshold(variant, train)
-        model = SentinelModel(**variant, threshold=thr).fit(
+        model = WatcherModel(**variant, threshold=thr).fit(
             [text_of(r) for r in train], [r.label for r in train]
         )
         s = model.decision(test_texts)
@@ -197,7 +197,7 @@ def main() -> None:
         row = {"rules": metrics(rule_scores(texts), y2, RULE_THRESHOLD)}
         variant = variants["combined"]
         thr = oof_threshold(variant, train)
-        m = SentinelModel(**variant).fit([text_of(r) for r in train], [r.label for r in train])
+        m = WatcherModel(**variant).fit([text_of(r) for r in train], [r.label for r in train])
         ms = m.decision(texts)
         row["combined"] = metrics(ms, y2, thr)
         either = ((rule_scores(texts) >= RULE_THRESHOLD) | (ms >= thr)).astype(float)

@@ -1,4 +1,4 @@
-# MCP Sentinel
+# MCP Watcher
 
 > Daily automated risk signals for tool descriptions in the public MCP registry. Each flag carries the exact evidence text, the rule or model that fired, and a link to the source line. A flag is a reason for a human to read the text closely and never a claim that a server or its author acted in bad faith.
 
@@ -19,4 +19,4 @@ The data refreshes once a day after the scheduled scan. Every file below is plai
 
 ## Source
 
-- [Code, method and model card](https://github.com/rohitDurbha/mcp-sentinel)
+- [Code, method and model card](https://github.com/rohitDurbha/mcp-watcher)

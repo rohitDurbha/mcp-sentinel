@@ -1,6 +1,6 @@
-# mcp-sentinel
+# mcp-watcher
 
-mcp-sentinel watches the public MCP ecosystem and flags tools whose descriptions could steer an AI assistant against the person using it. Every MCP tool ships with a description that the model reads and the user usually never sees, which makes that text a quiet place to hide instructions. This project reads those descriptions straight from source code, scores them, and publishes the results on a site that refreshes every day.
+mcp-watcher watches the public MCP ecosystem and flags tools whose descriptions could steer an AI assistant against the person using it. Every MCP tool ships with a description that the model reads and the user usually never sees, which makes that text a quiet place to hide instructions. This project reads those descriptions straight from source code, scores them, and publishes the results on a site that refreshes every day.
 
 ## How it works
 
@@ -10,10 +10,10 @@ The pipeline pulls every server from the official MCP registry and makes a shall
 
 ```bash
 uv venv && uv pip install -e ".[dev,ml]"
-mcp-sentinel discover --out data/servers.jsonl
-mcp-sentinel extract --servers data/servers.jsonl --out data/tools.jsonl
-mcp-sentinel extract --repo https://github.com/modelcontextprotocol/servers --out data/one.jsonl
-mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl --model models/sentinel-lr-1.pkl
+mcp-watcher discover --out data/servers.jsonl
+mcp-watcher extract --servers data/servers.jsonl --out data/tools.jsonl
+mcp-watcher extract --repo https://github.com/modelcontextprotocol/servers --out data/one.jsonl
+mcp-watcher scan --tools data/tools.jsonl --out data/findings.jsonl --model models/watcher-lr-1.pkl
 pytest
 ```
 

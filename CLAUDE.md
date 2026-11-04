@@ -1,6 +1,6 @@
-# mcp-sentinel project rules
+# mcp-watcher project rules
 
-mcp-sentinel crawls public MCP servers, extracts every tool definition from their source code, and scores each tool for poisoning and other risk signals. A scheduled GitHub Actions job refreshes the data every day, and a static site on GitHub Pages lets anyone search the results.
+mcp-watcher crawls public MCP servers, extracts every tool definition from their source code, and scores each tool for poisoning and other risk signals. A scheduled GitHub Actions job refreshes the data every day, and a static site on GitHub Pages lets anyone search the results.
 
 The phased roadmap lives in `docs/PLAN.md`, and every change should map to the phase that is currently in progress.
 
@@ -10,19 +10,19 @@ The phased roadmap lives in `docs/PLAN.md`, and every change should map to the p
 uv venv && uv pip install -e ".[dev,ml]"  # install with dev and ML tools
 pytest -q                                 # run the full test suite (no network)
 ruff check . && ruff format --check .     # lint and format check
-mcp-sentinel discover --out data/servers.jsonl      # pull server list from the official registry
-mcp-sentinel extract --servers data/servers.jsonl --out data/tools.jsonl
-mcp-sentinel extract --repo https://github.com/OWNER/REPO --out data/tools.jsonl
-mcp-sentinel scan --tools data/tools.jsonl --out data/findings.jsonl --model models/sentinel-lr-1.pkl
+mcp-watcher discover --out data/servers.jsonl      # pull server list from the official registry
+mcp-watcher extract --servers data/servers.jsonl --out data/tools.jsonl
+mcp-watcher extract --repo https://github.com/OWNER/REPO --out data/tools.jsonl
+mcp-watcher scan --tools data/tools.jsonl --out data/findings.jsonl --model models/watcher-lr-1.pkl
 python research/train_eval.py --tools data/bench_tools.jsonl data/attack_tools.jsonl   # retrain and re-evaluate
-mcp-sentinel pipeline --previous previous --out out --model models/sentinel-lr-1.pkl  # the daily run
-mcp-sentinel site --data public --out _site   # build the site from a checkout of the data branch
+mcp-watcher pipeline --previous previous --out out --model models/watcher-lr-1.pkl  # the daily run
+mcp-watcher site --data public --out _site   # build the site from a checkout of the data branch
 ```
 
 ## Layout
 
 ```
-src/mcp_sentinel/
+src/mcp_watcher/
   models.py        dataclasses shared by every stage
   registry.py      official MCP registry client
   fetch.py         shallow, hook-free git clones with size limits

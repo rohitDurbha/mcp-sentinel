@@ -6,7 +6,7 @@ on:
     types: [completed]
   push:
     branches: [main]
-    paths: ["site/**", "src/mcp_sentinel/sitedata.py", "datasets/disputes.json", ".github/workflows/pages.yml"]
+    paths: ["site/**", "src/mcp_watcher/sitedata.py", "datasets/disputes.json", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -39,7 +39,7 @@ jobs:
           git archive origin/data | tar -x -C public
 
       - name: Build the site
-        run: mcp-sentinel site --data public --out _site
+        run: mcp-watcher site --data public --out _site
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from mcp_sentinel.pipeline import write_gz_jsonl, write_json
-from mcp_sentinel.sitedata import build_site
+from mcp_watcher.pipeline import write_gz_jsonl, write_json
+from mcp_watcher.sitedata import build_site
 
 REPO = "https://github.com/acme/tools"
 
@@ -109,7 +109,7 @@ def test_disputes_keep_open_flags_visible_and_drop_cleared_ones_from_counts(publ
                     "name": "lookup",
                     "status": "cleared",
                     "note": "The phrase protects users from a false claim.",
-                    "issue": "https://github.com/rohitDurbha/mcp-sentinel/issues/1",
+                    "issue": "https://github.com/rohitDurbha/mcp-watcher/issues/1",
                 },
                 {
                     "repo_url": REPO,
@@ -117,7 +117,7 @@ def test_disputes_keep_open_flags_visible_and_drop_cleared_ones_from_counts(publ
                     "name": "fetch",
                     "status": "open",
                     "note": "",
-                    "issue": "https://github.com/rohitDurbha/mcp-sentinel/issues/2",
+                    "issue": "https://github.com/rohitDurbha/mcp-watcher/issues/2",
                 },
             ]
         )

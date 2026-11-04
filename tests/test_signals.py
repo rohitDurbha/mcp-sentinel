@@ -6,8 +6,8 @@ Positive examples follow the tool poisoning demonstrations published by Invarian
 
 import pytest
 
-from mcp_sentinel.models import ParamText, Tool
-from mcp_sentinel.signals import level, scan_text, scan_tool, score
+from mcp_watcher.models import ParamText, Tool
+from mcp_watcher.signals import level, scan_text, scan_tool, score
 
 
 def signals(text: str) -> set[str]:

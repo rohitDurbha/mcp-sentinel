@@ -64,7 +64,7 @@ jobs:
           fi
           PREV_ARG=""
           if [ -d previous ]; then PREV_ARG="--previous previous"; fi
-          mcp-sentinel pipeline $PREV_ARG --out out --model models/sentinel-lr-1.pkl --workers 16 --budget-minutes 220 $LIMIT_ARG
+          mcp-watcher pipeline $PREV_ARG --out out --model models/watcher-lr-1.pkl --workers 16 --budget-minutes 220 $LIMIT_ARG
           cat out/summary.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save the full output for the next run
