@@ -102,7 +102,6 @@ mark {
   padding: 0.1em 0.16em; margin: 0 -0.04em;
   box-decoration-break: clone; -webkit-box-decoration-break: clone;
 }
-.specimen mark { animation: mark-in 650ms cubic-bezier(0.3, 0.7, 0.4, 1) both; animation-delay: calc(500ms + var(--i, 0) * 180ms); }
 @keyframes mark-in { from { background-size: 0% 100%; } to { background-size: 100% 100%; } }
 
 /* One entrance on the home page, after Magic UI's BlurFade (MIT). */
@@ -110,7 +109,74 @@ mark {
 @keyframes blur-fade { from { opacity: 0; transform: translateY(-6px); filter: blur(6px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .specimen mark, .reveal { animation: none; }
+  .reveal { animation: none; }
+}
+
+/* The specimen reel. Every slide sits in the same grid cell, so the box keeps the height of the
+   tallest example and the page never jumps when the slide changes. */
+.reel { position: relative; overflow: hidden; padding-bottom: 18px; }
+.reel-bar { position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 2px; z-index: 1; }
+.reel-count { color: var(--ink-2); font-size: 0.82rem; font-variant-numeric: tabular-nums; margin-right: 6px; }
+.reel-btn {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid transparent;
+  border-radius: 8px; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.reel-btn:hover { color: var(--ink); border-color: var(--rule); background: var(--paper); }
+.slides { display: grid; }
+.slide { grid-area: 1 / 1; visibility: hidden; opacity: 0; transition: opacity 300ms ease, visibility 0s 300ms; }
+.slide.active { visibility: visible; opacity: 1; transition: opacity 300ms ease; }
+.slide .who { padding-right: 150px; }
+.specimen-body { position: relative; }
+.scanline {
+  position: absolute; left: -22px; right: -22px; top: 0; height: 2px; opacity: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--link) 20%, var(--link) 80%, transparent);
+  box-shadow: 0 0 12px 2px color-mix(in srgb, var(--link) 35%, transparent);
+}
+.slide.active .scanline { animation: scan var(--scan) ease-in-out both; }
+@keyframes scan { 0% { top: 0; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+.slide.active mark { animation: mark-in 600ms cubic-bezier(0.3, 0.7, 0.4, 1) both; animation-delay: calc(var(--scan) + var(--i, 0) * var(--step)); }
+
+.verdict { display: grid; gap: 8px; margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--rule); }
+.verdict > div { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 12px; align-items: start; }
+.verdict dt { color: var(--ink-2); font-size: 0.85rem; padding-top: 3px; }
+.verdict dd { margin: 0; min-width: 0; }
+.rule-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rule-chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 3px 9px; border-radius: 999px;
+  background: var(--paper); border: 1px solid var(--rule);
+}
+.rule-chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ink-2); }
+.rule-chip.high::before { background: var(--high); }
+.rule-chip.medium::before { background: var(--medium); }
+.rule-chip.none { color: var(--ink-2); border-style: dashed; }
+.rule-chip.none::before { display: none; }
+.slide.active .rule-chip { animation: chip-in 300ms ease-out both; animation-delay: calc(var(--scan) + var(--i, 0) * var(--step) + 150ms); }
+@keyframes chip-in { from { opacity: 0; transform: translateY(4px); } }
+.meter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.meter { position: relative; width: 140px; height: 8px; border-radius: 4px; background: var(--rule); overflow: hidden; flex: none; }
+.meter-fill { position: absolute; inset: 0 auto 0 0; width: calc(var(--score) * 100%); border-radius: 0 4px 4px 0; background: var(--ink); }
+.slide.active .meter-fill { animation: meter-in 700ms cubic-bezier(0.3, 0.7, 0.4, 1) both; animation-delay: var(--after); }
+@keyframes meter-in { from { width: 0; } }
+.meter-text { font-size: 0.88rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.result dd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.slide.active .result, .slide.active .meter-text { animation: chip-in 300ms ease-out both; }
+.slide.active .meter-text { animation-delay: calc(var(--after) + 500ms); }
+.slide.active .result { animation-delay: calc(var(--after) + 900ms); }
+
+.reel-progress { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--ink-2); opacity: 0.35; transform-origin: left; transform: scaleX(0); }
+.reel-progress.run { animation: progress var(--dur) linear forwards; }
+@keyframes progress { to { transform: scaleX(1); } }
+.reel.held *, .reel.offscreen *, .reel.stopped .reel-progress { animation-play-state: paused !important; }
+.reel.stopped .reel-progress { opacity: 0; }
+@media (max-width: 560px) {
+  .slide .who { padding-right: 0; padding-top: 30px; }
+  .verdict > div { grid-template-columns: 1fr; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide, .slide.active { transition: none; }
+  .slide.active .scanline { animation: none; }
+  .slide.active mark, .slide.active .rule-chip, .slide.active .meter-fill,
+  .slide.active .meter-text, .slide.active .result { animation: none; }
 }
 
 .level { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.88rem; white-space: nowrap; }

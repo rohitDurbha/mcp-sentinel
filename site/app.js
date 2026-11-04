@@ -201,6 +201,103 @@ function pagedList(container, items, render, emptyText) {
   container.append(list, h("div", { class: "pager-bar" }, range, pages > 1 ? nav : null));
 }
 
+/* The specimen reel. Real flagged tools play one after another, and each one walks through
+   the scan as it happens. A scan line passes over the text, the rule matches are marked in
+   order, the classifier meter fills to its score, and then the result appears. */
+
+const SPECIMENS = 6;
+const SPECIMEN_CHARS = 520;
+
+// Four tools that both the rules and the classifier flagged, then two that only the classifier
+// caught, each from a different repository and short enough to read in a few seconds.
+function specimenPool(flags) {
+  const short = (f) => f.description && Array.from(f.description).length <= SPECIMEN_CHARS;
+  const strongest = (a, b) => b.model.score - a.model.score || a.id.localeCompare(b.id);
+  const seen = new Set();
+  const take = (list, n) => list.filter((f) => !seen.has(f.repo_url) && seen.add(f.repo_url)).slice(0, n);
+  const both = take(flags.filter((f) => f.level === "high" && f.model?.flag && spansFor(f, "description").length && short(f)).sort(strongest), 4);
+  const modelOnly = take(flags.filter((f) => !f.findings.length && f.model?.flag && short(f)).sort(strongest), SPECIMENS - both.length);
+  return [both[0], both[1], modelOnly[0], both[2], both[3], modelOnly[1]].filter(Boolean);
+}
+
+function specimenSlide(f, i, total) {
+  const marks = spansFor(f, "description").length;
+  const rules = [...new Map(f.findings.map((x) => [x.rule, x])).values()];
+  const scan = 1100, step = 320;
+  const after = scan + Math.max(marks, rules.length) * step;
+  const terms = (f.model?.top_terms || []).slice(0, 3).map((t) => `\u201c${t[0]}\u201d`);
+  const text = marked(f.description, spansFor(f, "description"));
+  text.classList.add("specimen-text");
+  const slide = h("article", { class: "slide", "aria-roledescription": "slide", "aria-label": `${i + 1} of ${total}`,
+    style: `--scan:${scan}ms;--step:${step}ms;--after:${after}ms;--dur:${after + 4200}ms` },
+    h("p", { class: "who" }, "From the tool ", h("code", {}, f.name), ` in ${repoShort(f.repo_url)}`),
+    h("div", { class: "specimen-body" }, text, h("span", { class: "scanline", "aria-hidden": "true" })),
+    h("dl", { class: "verdict" },
+      h("div", {}, h("dt", {}, "Rules"), h("dd", { class: "rule-chips" }, rules.length
+        ? rules.map((x, n) => h("span", { class: `rule-chip ${x.severity}`, style: `--i:${n}`, title: x.rule }, x.message))
+        : h("span", { class: "rule-chip none", style: "--i:0" }, "No rule matched this text"))),
+      h("div", {}, h("dt", {}, "Classifier"), h("dd", { class: "meter-row" },
+        h("span", { class: "meter", role: "img", "aria-label": `Classifier score ${f.model.score.toFixed(2)} out of 1` },
+          h("span", { class: "meter-fill", style: `--score:${f.model.score}` })),
+        h("span", { class: "meter-text" }, `${f.model.score.toFixed(2)}, ${f.model.flag ? "flagged" : "below its threshold"}`,
+          terms.length ? `, leaning on ${terms.slice(0, -1).join(", ")}${terms.length > 1 ? " and " : ""}${terms.at(-1)}` : ""))),
+      h("div", { class: "result" }, h("dt", {}, "Result"), h("dd", {}, levelTag(f.level), h("a", { href: flagHref(f) }, "See the evidence"))),
+    ),
+  );
+  return slide;
+}
+
+function specimenReel(pool) {
+  const slides = pool.map((f, i) => specimenSlide(f, i, pool.length));
+  const counter = h("span", { class: "reel-count", "aria-hidden": "true" });
+  const progress = h("span", { class: "reel-progress", "aria-hidden": "true" });
+  const playLabel = () => (reel.classList.contains("stopped") ? "Play the examples" : "Pause the examples");
+  const playIcon = () => (reel.classList.contains("stopped") ? svg(["M8 5v14l11-7z"]) : svg(["M9 5v14", "M15 5v14"]));
+  const play = h("button", { type: "button", class: "reel-btn" });
+  const button = (label, icon, onclick) => h("button", { type: "button", class: "reel-btn", "aria-label": label, onclick }, icon);
+  const reel = h("section", { class: "specimen reel", "aria-roledescription": "carousel", "aria-label": "How the scan reads a tool" },
+    h("div", { class: "reel-bar" }, counter,
+      button("Previous example", chevronIcon("left"), () => show(at - 1)),
+      play,
+      button("Next example", chevronIcon("right"), () => show(at + 1))),
+    h("div", { class: "slides" }, slides), progress);
+  let at = 0;
+  const show = (n) => {
+    at = (n + slides.length) % slides.length;
+    slides.forEach((s, i) => {
+      s.classList.toggle("active", i === at);
+      s.toggleAttribute("inert", i !== at);
+      s.setAttribute("aria-hidden", String(i !== at));
+    });
+    counter.textContent = `${at + 1} of ${slides.length}`;
+    progress.style.setProperty("--dur", slides[at].style.getPropertyValue("--dur"));
+    progress.classList.remove("run");
+    void progress.offsetWidth;  // a reflow between the two class changes restarts the timer
+    progress.classList.add("run");
+  };
+  const syncPlay = () => {
+    play.setAttribute("aria-label", playLabel());
+    play.replaceChildren(playIcon());
+  };
+  play.addEventListener("click", () => {
+    reel.classList.toggle("stopped");
+    syncPlay();
+  });
+  progress.addEventListener("animationend", () => show(at + 1));
+  // The timer pauses while someone reads or tabs inside, and while the reel is off screen.
+  reel.addEventListener("pointerenter", () => reel.classList.add("held"));
+  reel.addEventListener("pointerleave", () => reel.classList.remove("held"));
+  reel.addEventListener("focusin", () => reel.classList.add("held"));
+  reel.addEventListener("focusout", (e) => { if (!reel.contains(e.relatedTarget)) reel.classList.remove("held"); });
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(([e]) => reel.classList.toggle("offscreen", !e.isIntersecting)).observe(reel);
+  }
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) reel.classList.add("stopped");
+  syncPlay();
+  show(0);
+  return reel;
+}
+
 /* Insights. Linked bar charts over the flagged tools, where a click on any bar filters every
    other chart and the list of matching tools. Each chart ignores its own filter, so the other
    choices stay visible while one is picked. */
@@ -450,9 +547,7 @@ async function viewHome(main) {
   const [flags, summary, history] = await Promise.all([load("flags"), load("summary"), load("history")]);
   const counted = flags.filter((f) => shownLevel(f) !== "cleared");
   const highs = counted.filter((f) => f.level === "high").length;
-  const specimen = [...counted]
-    .filter((f) => f.level === "high" && f.model?.flag)
-    .sort((a, b) => b.model.score - a.model.score || a.id.localeCompare(b.id))[0] || counted[0];
+  const pool = specimenPool(counted);
 
   main.append(
     reveal(h("h1", {}, "Hidden instructions in MCP tool descriptions, checked every day."), 0),
@@ -460,12 +555,7 @@ async function viewHome(main) {
       "AI assistants read the description of every tool they can call, and that text can quietly steer them. ",
       "This site reads the source code behind each public server in the official MCP registry and marks the exact words that look like instructions aimed at the assistant."), 1),
   );
-  if (specimen) {
-    main.append(reveal(h("section", { class: "specimen", "aria-label": "Example flagged tool" },
-      h("p", { class: "who" }, "From the tool ", h("code", {}, specimen.name), ` in ${repoShort(specimen.repo_url)}, as found in the latest scan.`),
-      marked(specimen.description, spansFor(specimen, "description")),
-    ), 2), reveal(action(flagHref(specimen), "See why it was flagged"), 3));
-  }
+  if (pool.length) main.append(reveal(specimenReel(pool), 2));
   main.append(reveal(h("ul", { class: "facts" },
     h("li", {}, ticker(summary.servers), h("span", {}, "registry entries")),
     h("li", {}, ticker(summary.repos_checked), h("span", {}, "repositories checked")),
