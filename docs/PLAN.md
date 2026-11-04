@@ -88,6 +88,10 @@ Error analysis, a findings write-up, and resume bullets backed by real numbers f
 
 A scheduled run on November 3 spent almost two hours checking commits, so commit checks gained a 30 second timeout and the workflow began sending its own token with each check. The next run showed that the slowdown had already passed on its own, at 584 seconds, and the token made things worse. The checkout step already stores a token in the working folder's git config, so every check sent two authorization headers, and GitHub rejected 37,122 of them with HTTP 400. That run published nearly every registry entry as stale. The extra token is gone, the short timeout stays, and a run now stops without publishing when more than half of its commit checks fail.
 
+## Phase 6 result
+
+Phase 6 met its exit criteria on real data. Two hand reviewed samples of live flags measured precision, with sample A used to find and fix false alarms and sample B, drawn afterwards and never used for tuning, giving the honest measure of 8 percent with a 95 percent interval of 3 to 19 percent. The rules were narrowed with regression tests, the model was retrained as watcher-lr-2, and classifier flags without rule evidence moved to a watch tier that is listed but never counted. The findings live in `docs/findings.md` and on the site, and the model card reports every number with the order in which choices were made.
+
 ## Project name
 
 The project began as mcp-sentinel and was renamed to MCP Watcher, with the repository and package called mcp-watcher, because an unrelated and popular Claude Code security tool already uses the name MCP Sentinel. The classifier file was saved again under the new package name with identical weights, which the model card records.

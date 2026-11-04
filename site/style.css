@@ -387,3 +387,7 @@ button.bar:hover { background: var(--paper); }
 }
 @media (prefers-reduced-motion: reduce) { .fill, .seg { transition: none; } }
 .insight-section .results { margin-top: 14px; }
+.table-wrap { overflow-x: auto; max-width: 72ch; margin: 8px 0 16px; }
+table.plain { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+table.plain th, table.plain td { text-align: left; padding: 8px 16px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.plain th { color: var(--ink-2); font-weight: 600; font-size: 0.9rem; }

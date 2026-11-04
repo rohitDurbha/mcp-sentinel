@@ -79,7 +79,19 @@ The benchmarks above say little about the live registry, where tool text is far 
 | Rules only, medium | 123 | 17 | 1 |
 | Model only | 252 | 35 | 1 |
 
-Weighted back to the 724 flags in that run, roughly one flag in nine deserved a human look. The false alarms fell into clear patterns, which were tools whose whole job is SSH, agent setup or `.env` handling, negated or conditional sentences such as "never publish without asking the user", documentation tags used as section headings, short HTML comment markers, and long imperative product text that only the classifier reacted to. The narrowed rules and the watch tier answer those patterns. Because this sample guided the changes, it is a development set and its precision is not a fair measure of the new policy. A second sample drawn after the changes, and never used to tune anything, will give that measure in `datasets/registry_review_b.json`.
+Weighted back to the 724 flags in that run, roughly one flag in nine deserved a human look. The false alarms fell into clear patterns, which were tools whose whole job is SSH, agent setup or `.env` handling, negated or conditional sentences such as "never publish without asking the user", documentation tags used as section headings, short HTML comment markers, and long imperative product text that only the classifier reacted to. The narrowed rules and the watch tier answer those patterns. Because this sample guided the changes, it is a development set and its precision is not a fair measure of the new policy.
+
+A second sample was drawn from the run published on November 4, after the changes, with every tool from sample A left out of the frame. Nothing was tuned on it, and its labels live in `datasets/registry_review_b.json`.
+
+| Group in sample B | Read | Concern or demo | 95% interval |
+|---|---|---|---|
+| Counted flags | 50 | 4 (8%) | 3% to 19% |
+| High | 19 | 3 (16%) | 6% to 38% |
+| Medium from a rule alone | 12 | 0 | 0% to 24% |
+| Medium lifted by the model | 19 | 1 (5%) | 1% to 25% |
+| Watch tier | 20 | 0 | 0% to 16% |
+
+The changes halved the counted flags from 724 to 360 while keeping every concern and demo from sample A, but they did not measurably raise precision on live data. The watch tier held nothing worth a look, which supports keeping it out of the count. Most remaining false alarms come from tools whose purpose involves secrets or security, and `docs/findings.md` describes them along with the consent patterns that made up every real concern.
 
 ## Comparison with earlier work
 

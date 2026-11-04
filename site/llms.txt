@@ -6,7 +6,7 @@ The data refreshes once a day after the scheduled scan. Every file below is plai
 
 ## Data
 
-- [data/flags.json](data/flags.json): one record per distinct flagged tool. Fields include `id`, `name`, `repo_url`, `commit`, `path`, `line`, `source_url`, `level` (`high` or `medium`), `description`, `params`, `findings` (each with `rule`, `signal`, `severity`, `field`, `start`, `end`, `evidence`, `message`), `model` (`score`, `flag`, `top_terms`), `servers` (registry names that list this tool) and an optional `dispute` (`status` is `open`, `confirmed` or `cleared`). Finding offsets count Unicode code points.
+- [data/flags.json](data/flags.json): one record per distinct flagged tool. Fields include `id`, `name`, `repo_url`, `commit`, `path`, `line`, `source_url`, `level` (`high` or `medium`, or `watch` for classifier only signals that are listed but never counted), `description`, `params`, `findings` (each with `rule`, `signal`, `severity`, `field`, `start`, `end`, `evidence`, `message`), `model` (`score`, `flag`, `top_terms`), `servers` (registry names that list this tool) and an optional `dispute` (`status` is `open`, `confirmed` or `cleared`). Finding offsets count Unicode code points.
 - [data/servers.json](data/servers.json): every registry entry as `columns` plus `rows`, with `name`, `title`, `description`, `repo_url`, `subfolder`, `status`, `tools`, `flags` and `level`.
 - [data/summary.json](data/summary.json): totals for the latest run.
 - [data/history.json](data/history.json): one summary per daily run, oldest first.
@@ -15,6 +15,7 @@ The data refreshes once a day after the scheduled scan. Every file below is plai
 
 - `#/` lists every flagged tool, and `#/flag/<id>` shows one flag with its evidence marked in the text.
 - `#/servers?q=<text>` searches the registry, and `#/server/<registry name>` shows one entry and its flagged tools.
+- `#/findings` summarizes what the first hand reviews of live flags found.
 - `#/method` explains the method, the levels and how to dispute a result.
 
 ## Source

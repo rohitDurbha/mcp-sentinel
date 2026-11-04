@@ -717,6 +717,42 @@ async function viewFlag(main, id) {
     action(disputeUrl, "Dispute this result on GitHub"));
 }
 
+// What the first days of scanning showed. The numbers are dated because they come from the
+// hand reviews in datasets/, while the rest of the site updates every day.
+function viewFindings(main) {
+  const p = (...t) => h("p", {}, ...t);
+  const table = (head, rows) => h("div", { class: "table-wrap" }, h("table", { class: "plain" },
+    h("thead", {}, h("tr", {}, head.map((c) => h("th", {}, c)))),
+    h("tbody", {}, rows.map((r) => h("tr", {}, r.map((c) => h("td", {}, c)))))));
+  main.append(
+    h("h1", {}, "What the first days of scanning found"),
+    h("p", { class: "lede" }, "Measured between November 2 and November 4, 2026, from the daily pipeline and two samples of flags read by hand."),
+    h("h2", {}, "How often a flag deserves a look"),
+    p("Fewer than one flag in five deserves a human look on live data, even after the fixes from the first review. A second sample that was never used for tuning found that 4 of 50 counted flags were worth attention, which is 8 percent with a 95 percent interval of 3 to 19 percent."),
+    table(["Sample", "Flags read", "Worth a look"], [
+      ["A, used to find and fix false alarms", "100", "11"],
+      ["B, counted flags, never used for tuning", "50", "4"],
+      ["B, classifier only tier", "20", "0"],
+    ]),
+    p("The same detector catches 14 of 16 real published attacks on a curated benchmark. That gap is the clearest lesson so far, because real registry tools are long, imperative and often about security or secrets themselves."),
+    h("h2", {}, "What the real concerns look like"),
+    p("None of the six concerns in the samples was a classic data theft attack. Each one was a consent pattern, where a description asks the assistant to act without telling the person or without asking first."),
+    h("ul", { class: "reasons" },
+      h("li", {}, "Save personal facts the user mentions and never say so."),
+      h("li", {}, "Send the operator's email to a sales pipeline as a required step."),
+      h("li", {}, "Report quietly which content was shown to the user."),
+      h("li", {}, "Send diagnostics to the vendor without asking the user."),
+      h("li", {}, "Apply every generated code change without asking the user."),
+      h("li", {}, "Pass the user's exact first message to the tool before every reply.")),
+    p("These may all have reasonable product motives, so this page names no server. Each one is flagged with its exact evidence, and its author can respond from the flag page."),
+    h("h2", {}, "Where false alarms come from"),
+    p("Most false alarms come from tools whose job involves secrets, SSH keys or agent setup, and from security tools that name the very attacks they block. A rule cannot tell a secret manager from an attack by its words alone, so judging a tool by its purpose is the next planned step."),
+    h("h2", {}, "Coverage"),
+    p("The registry held 55,974 entries pointing at 29,751 distinct repositories. About a third of entries list no repository, so no source scanner can see them, and the 2.66 million tool records collapse to about 312,000 distinct tools because many entries share one repository."),
+    p("The full write up, with every table, is in ", h("a", { href: `${REPO}/blob/main/docs/findings.md` }, "docs/findings.md"), " on GitHub."),
+  );
+}
+
 function viewMethod(main) {
   const p = (...t) => h("p", {}, ...t);
   main.append(
@@ -752,7 +788,7 @@ async function route() {
   const parts = path.split("/").filter(Boolean);
   const main = document.getElementById("main");
   main.replaceChildren();
-  const here = parts[0] === "method" ? "/method" : ["servers", "server"].includes(parts[0]) ? "/servers" : "/";
+  const here = ["method", "findings"].includes(parts[0]) ? `/${parts[0]}` : ["servers", "server"].includes(parts[0]) ? "/servers" : "/";
   for (const a of document.querySelectorAll("nav a")) {
     if (a.getAttribute("href") === `#${here}`) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
@@ -762,6 +798,7 @@ async function route() {
     else if (parts[0] === "server") await viewServer(main, decodeURIComponent(parts.slice(1).join("/")));
     else if (parts[0] === "flag") await viewFlag(main, parts[1]);
     else if (parts[0] === "method") viewMethod(main);
+    else if (parts[0] === "findings") viewFindings(main);
     else await viewHome(main);
   } catch (err) {
     main.replaceChildren(h("h1", {}, "The data did not load"), h("p", {}, `${err.message} Reload the page to try again.`));
