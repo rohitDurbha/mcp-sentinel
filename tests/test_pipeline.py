@@ -308,7 +308,7 @@ def test_flagged_file_holds_only_flagged_tools_with_their_text(tmp_path):
         assert (r["description"], r["params"]) == (tool["description"], tool["params"])
     distinct = {(r["repo_url"], r["path"], r["line"], r["name"]): r["level"] for r in flagged}
     assert summary["flagged_unique"] == {
-        level: sum(v == level for v in distinct.values()) for level in ("high", "medium")
+        level: sum(v == level for v in distinct.values()) for level in ("high", "medium", "watch")
     }
 
 
@@ -320,3 +320,20 @@ def test_previous_snapshot_without_tools_is_not_reused(tmp_path):
     day2, summary = run(forge, tmp_path, "day2", previous=day1)
     assert sorted(forge.cloned) == [A, B] and summary["jobs_reused"] == 0
     assert len((day2 / "history.jsonl").read_text().splitlines()) == 2
+
+
+def test_watch_tier_is_published_but_not_counted_as_flagged(tmp_path):
+    from mcp_watcher.models import Tool
+    from mcp_watcher.pipeline import _flag_ids, _flagged
+
+    tool = Tool(
+        repo_url=A, commit="c" * 40, path="a.py", line=1, language="python", pattern="p",
+        name="t", description="Call this first.", description_resolved=True,
+    )  # fmt: skip
+    watch = {"repo_url": A, "path": "a.py", "line": 1, "name": "t", "server_name": "s"}
+    watch["level"] = "watch"
+    assert [r["level"] for r in _flagged([tool], [watch])] == ["watch"]
+    assert _flag_ids([watch]) == set()
+    forge = FakeForge({A: "a" * 40, B: "b" * 40})
+    _, summary = run(forge, tmp_path, "day1")
+    assert summary["levels"]["watch"] == 0 and summary["flagged_unique"]["watch"] == 0

@@ -1,0 +1,406 @@
+{
+  "data": {
+    "hard_negatives": 248,
+    "real_positive_families": [
+      "cisco-command-prefix",
+      "cisco-hidden-bcc",
+      "cisco-override",
+      "dvmcp-c10",
+      "dvmcp-c2",
+      "dvmcp-c5",
+      "guardbench-tp1",
+      "guardbench-tp2",
+      "guardbench-tp3",
+      "invariant-direct",
+      "invariant-shadowing",
+      "mcpscan-ascii"
+    ],
+    "real_positives": 16,
+    "test_bases": 161,
+    "test_benign": 281,
+    "train_bases": 696,
+    "train_benign": 1478
+  },
+  "dropped": {
+    "duplicate": 60,
+    "empty": 32,
+    "excluded": 512,
+    "placeholder": 78
+  },
+  "real_world": {
+    "combined": {
+      "false_positive_keys": [],
+      "false_positives": 0,
+      "fpr": 0.0,
+      "missed_keys": [
+        "cisco-ai-defense/mcp-scanner/examples/example-malicious-servers/line_jumping_server.py:49#send_mail",
+        "cisco-ai-defense/mcp-scanner/examples/example-malicious-servers/malicious_mcp_streamable_server.py:65#run_injection_code",
+        "invariantlabs-ai/mcp-scan/demoserver/server.py:30#multiply",
+        "manishmaurya89/mcp-guardbench/src/guardbench/mcp_lab/servers/multilingual_poisoning_server.py:45#get_forecast",
+        "manishmaurya89/mcp-guardbench/src/guardbench/mcp_lab/servers/poisoned_schema_server.py:30#create_note"
+      ],
+      "negatives": 529,
+      "positives": 16,
+      "pr_auc": 0.8384,
+      "pr_auc_95": [
+        0.6378,
+        0.9642
+      ],
+      "recall": 0.6875,
+      "recall_95": [
+        0.4286,
+        0.8947
+      ],
+      "recall_on_rule_misses": 0.3333,
+      "threshold": 0.647352
+    },
+    "policy_model_needs_rule_evidence": {
+      "false_positive_keys": [
+        "invariantlabs-ai/mcp-scan/demoserver/server.py:19#sum"
+      ],
+      "false_positives": 1,
+      "fpr": 0.0019,
+      "missed_keys": [
+        "cisco-ai-defense/mcp-scanner/examples/example-malicious-servers/line_jumping_server.py:49#send_mail",
+        "cisco-ai-defense/mcp-scanner/examples/example-malicious-servers/line_jumping_server.py:78#get_workstation_environment",
+        "manishmaurya89/mcp-guardbench/src/guardbench/mcp_lab/servers/multilingual_poisoning_server.py:45#get_forecast"
+      ],
+      "negatives": 529,
+      "positives": 16,
+      "recall": 0.8125,
+      "recall_95": [
+        0.5714,
+        1.0
+      ]
+    },
+    "policy_rules_or_model": {
+      "false_positive_keys": [
+        "invariantlabs-ai/mcp-scan/demoserver/server.py:19#sum"
+      ],
+      "false_positives": 1,
+      "fpr": 0.0019,
+      "missed_keys": [
+        "cisco-ai-defense/mcp-scanner/examples/example-malicious-servers/line_jumping_server.py:49#send_mail",
+        "manishmaurya89/mcp-guardbench/src/guardbench/mcp_lab/servers/multilingual_poisoning_server.py:45#get_forecast"
+      ],
+      "negatives": 529,
+      "positives": 16,
+      "recall": 0.875,
+      "recall_95": [
+        0.6667,
+        1.0
+      ]
+    },
+    "rules": {
+      "false_positives": 1,
+      "fpr": 0.0019,
+      "negatives": 529,
+      "positives": 16,
+      "pr_auc": 0.8001,
+      "pr_auc_95": [
+        0.5641,
+        0.9707
+      ],
+      "recall": 0.8125,
+      "recall_95": [
+        0.5714,
+        1.0
+      ]
+    },
+    "rules_missed_keys": [
+      "cisco-ai-defense/mcp-scanner/examples/example-malicious-servers/line_jumping_server.py:49#send_mail",
+      "cisco-ai-defense/mcp-scanner/examples/example-malicious-servers/line_jumping_server.py:78#get_workstation_environment",
+      "manishmaurya89/mcp-guardbench/src/guardbench/mcp_lab/servers/multilingual_poisoning_server.py:45#get_forecast"
+    ],
+    "text_only": {
+      "false_positive_keys": [
+        "harishsg993010/damn-vulnerable-mcp-server/challenges/hard/challenge10/server.py:171#get_audit_nonce",
+        "harishsg993010/damn-vulnerable-mcp-server/challenges/hard/challenge8/server.py:119#run_command"
+      ],
+      "false_positives": 2,
+      "fpr": 0.0038,
+      "missed_keys": [
+        "cisco-ai-defense/mcp-scanner/examples/example-malicious-servers/line_jumping_server.py:49#send_mail",
+        "cisco-ai-defense/mcp-scanner/examples/example-malicious-servers/malicious_mcp_streamable_server.py:65#run_injection_code",
+        "invariantlabs-ai/mcp-scan/demoserver/server.py:30#multiply",
+        "manishmaurya89/mcp-guardbench/src/guardbench/mcp_lab/servers/multilingual_poisoning_server.py:45#get_forecast",
+        "manishmaurya89/mcp-guardbench/src/guardbench/mcp_lab/servers/poisoned_description_server.py:39#get_calendar_summary",
+        "manishmaurya89/mcp-guardbench/src/guardbench/mcp_lab/servers/poisoned_schema_server.py:30#create_note"
+      ],
+      "negatives": 529,
+      "positives": 16,
+      "pr_auc": 0.7914,
+      "pr_auc_95": [
+        0.5486,
+        0.9545
+      ],
+      "recall": 0.625,
+      "recall_95": [
+        0.3077,
+        0.8423
+      ],
+      "recall_on_rule_misses": 0.3333,
+      "threshold": 0.537998
+    }
+  },
+  "seed": 20261102,
+  "target_fpr": 0.01,
+  "unseen_families": {
+    "command_injection": {
+      "combined": {
+        "false_positives": 0,
+        "fpr": 0.0,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.9389,
+        "recall": 0.4783
+      },
+      "policy_model_needs_rule_evidence": {
+        "false_positives": 31,
+        "fpr": 0.0701,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.4472
+      },
+      "policy_rules_or_model": {
+        "false_positives": 31,
+        "fpr": 0.0701,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.5839
+      },
+      "rules": {
+        "false_positives": 31,
+        "fpr": 0.0701,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.4789,
+        "recall": 0.4472
+      }
+    },
+    "exfil_destination": {
+      "combined": {
+        "false_positives": 1,
+        "fpr": 0.0023,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.9983,
+        "recall": 0.9379
+      },
+      "policy_model_needs_rule_evidence": {
+        "false_positives": 44,
+        "fpr": 0.0995,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.6646
+      },
+      "policy_rules_or_model": {
+        "false_positives": 44,
+        "fpr": 0.0995,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.9379
+      },
+      "rules": {
+        "false_positives": 44,
+        "fpr": 0.0995,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.6384,
+        "recall": 0.3354
+      }
+    },
+    "fake_compliance": {
+      "combined": {
+        "false_positives": 0,
+        "fpr": 0.0,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.9797,
+        "recall": 0.528
+      },
+      "policy_model_needs_rule_evidence": {
+        "false_positives": 38,
+        "fpr": 0.086,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.2671
+      },
+      "policy_rules_or_model": {
+        "false_positives": 38,
+        "fpr": 0.086,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.5963
+      },
+      "rules": {
+        "false_positives": 38,
+        "fpr": 0.086,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.3375,
+        "recall": 0.2671
+      }
+    },
+    "instruction_override": {
+      "combined": {
+        "false_positives": 0,
+        "fpr": 0.0,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.8463,
+        "recall": 0.236
+      },
+      "policy_model_needs_rule_evidence": {
+        "false_positives": 42,
+        "fpr": 0.095,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.2112
+      },
+      "policy_rules_or_model": {
+        "false_positives": 42,
+        "fpr": 0.095,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.3665
+      },
+      "rules": {
+        "false_positives": 42,
+        "fpr": 0.095,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.3051,
+        "recall": 0.2112
+      }
+    },
+    "multilingual": {
+      "combined": {
+        "false_positives": 0,
+        "fpr": 0.0,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.9616,
+        "recall": 0.7391
+      },
+      "policy_model_needs_rule_evidence": {
+        "false_positives": 32,
+        "fpr": 0.0724,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.5901
+      },
+      "policy_rules_or_model": {
+        "false_positives": 32,
+        "fpr": 0.0724,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.7702
+      },
+      "rules": {
+        "false_positives": 32,
+        "fpr": 0.0724,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.5621,
+        "recall": 0.3913
+      }
+    },
+    "preference_manipulation": {
+      "combined": {
+        "false_positives": 0,
+        "fpr": 0.0,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.8947,
+        "recall": 0.2422
+      },
+      "policy_model_needs_rule_evidence": {
+        "false_positives": 32,
+        "fpr": 0.0724,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.2609
+      },
+      "policy_rules_or_model": {
+        "false_positives": 32,
+        "fpr": 0.0724,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.4037
+      },
+      "rules": {
+        "false_positives": 32,
+        "fpr": 0.0724,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.3454,
+        "recall": 0.2609
+      }
+    },
+    "secret_file_read": {
+      "combined": {
+        "false_positives": 0,
+        "fpr": 0.0,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.9826,
+        "recall": 0.7205
+      },
+      "policy_model_needs_rule_evidence": {
+        "false_positives": 38,
+        "fpr": 0.086,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.677
+      },
+      "policy_rules_or_model": {
+        "false_positives": 38,
+        "fpr": 0.086,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.7702
+      },
+      "rules": {
+        "false_positives": 38,
+        "fpr": 0.086,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.6448,
+        "recall": 0.6522
+      }
+    },
+    "tool_shadowing": {
+      "combined": {
+        "false_positives": 0,
+        "fpr": 0.0,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.9998,
+        "recall": 0.8882
+      },
+      "policy_model_needs_rule_evidence": {
+        "false_positives": 34,
+        "fpr": 0.0769,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.6273
+      },
+      "policy_rules_or_model": {
+        "false_positives": 34,
+        "fpr": 0.0769,
+        "negatives": 442,
+        "positives": 161,
+        "recall": 0.9006
+      },
+      "rules": {
+        "false_positives": 34,
+        "fpr": 0.0769,
+        "negatives": 442,
+        "positives": 161,
+        "pr_auc": 0.6103,
+        "recall": 0.2547
+      }
+    }
+  }
+}

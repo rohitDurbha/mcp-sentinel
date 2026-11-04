@@ -188,6 +188,8 @@ mark {
 .pill::before { width: 8px; height: 8px; }
 .level.high { --level-color: var(--high); }
 .level.medium { --level-color: var(--medium); }
+.level.watch { --level-color: var(--ink-2); color: var(--ink-2); }
+.level.watch::before { background: var(--ink-2); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); opacity: 0.55; }
 .level.high::before { background: var(--high); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .level.medium::before { background: var(--medium); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .level.cleared::before { border: 2px solid var(--ink-2); border-radius: 50%; width: 9px; height: 9px; }
@@ -214,7 +216,8 @@ kbd {
   border-bottom-width: 2px; border-radius: 5px; padding: 3px 6px;
 }
 .field:focus-within kbd { visibility: hidden; }
-.segmented { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); min-height: 44px; }
+.segmented { display: inline-flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; gap: 2px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); min-height: 44px; }
+.segmented span { white-space: nowrap; }
 .segmented label { position: relative; display: flex; }
 .segmented input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .segmented span { display: flex; align-items: center; padding: 0 12px; border-radius: 7px; font-size: 0.92rem; font-weight: 500; color: var(--ink-2); transition: background 150ms, color 150ms; }
@@ -364,6 +367,7 @@ button.bar:hover { background: var(--paper); }
 .fill:not(:last-child) { border-radius: 0; }
 .fill.high, .seg.high { background: var(--high); }
 .fill.medium, .seg.medium { background: var(--medium); }
+.fill.watch, .seg.watch { background: var(--ink-2); opacity: 0.45; }
 .bars.has-pick .bar[aria-pressed="false"], .hist.has-pick .col[aria-pressed="false"] { opacity: 0.38; }
 .bar[aria-pressed="true"] .bar-label { font-weight: 650; }
 

@@ -13,7 +13,7 @@ uv venv && uv pip install -e ".[dev,ml]"
 mcp-watcher discover --out data/servers.jsonl
 mcp-watcher extract --servers data/servers.jsonl --out data/tools.jsonl
 mcp-watcher extract --repo https://github.com/modelcontextprotocol/servers --out data/one.jsonl
-mcp-watcher scan --tools data/tools.jsonl --out data/findings.jsonl --model models/watcher-lr-1.pkl
+mcp-watcher scan --tools data/tools.jsonl --out data/findings.jsonl --model models/watcher-lr-2.pkl
 pytest
 ```
 

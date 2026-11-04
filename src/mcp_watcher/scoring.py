@@ -14,9 +14,13 @@ def tool_from_row(row: dict) -> Tool:
 
 
 def final_level(rule_level: str, model_flag: bool) -> str:
-    """Rules decide the level, and a model flag lifts anything below medium to medium."""
-    if model_flag and rule_level in ("none", "low"):
+    """Rules decide the level. A model flag lifts low rule evidence to medium. A model flag with
+    no rule evidence at all goes to the watch tier, which is published for review but is not
+    counted as a flag, because on live registry data those were rarely worth a look."""
+    if model_flag and rule_level == "low":
         return "medium"
+    if model_flag and rule_level == "none":
+        return "watch"
     return rule_level
 
 

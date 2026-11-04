@@ -167,3 +167,15 @@ def test_asset_links_carry_a_content_hash_so_browsers_never_mix_versions(public,
     second = (out / "index.html").read_text()
     assert first.split("style.css?v=")[1][:10] != second.split("style.css?v=")[1][:10]
     assert first.split("app.js?v=")[1][:10] == second.split("app.js?v=")[1][:10]
+
+
+def test_watch_flags_are_listed_but_do_not_count_toward_a_server(public, tmp_path):
+    data_dir = public[0]
+    rows = [flagged_row("io.acme/b", name="only_model", level="watch", line=99)]
+    rows[0]["findings"] = []
+    write_gz_jsonl(data_dir / "flagged.jsonl.gz", rows)
+    _, data = build(public, tmp_path)
+    assert [f["level"] for f in data["flags"]] == ["watch"]
+    cols = data["servers"]["columns"]
+    b = dict(zip(cols, data["servers"]["rows"][2], strict=True))
+    assert (b["flags"], b["level"]) == (0, "none")

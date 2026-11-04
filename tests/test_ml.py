@@ -147,3 +147,16 @@ def test_scoring_feeds_the_model_in_bounded_chunks(monkeypatch):
     records = scoring.score_tools(tools, CountingModel())
     assert seen == [3, 3, 1]
     assert [r["line"] for r in records] == list(range(7))
+
+
+def test_classifier_alone_goes_to_a_separate_watch_tier():
+    # Phase 6 review of live flags: classifier-only flags were rarely worth a look, so they are
+    # kept visible in their own tier and do not count as flags.
+    from mcp_watcher.scoring import final_level
+
+    assert final_level("none", True) == "watch"
+    assert final_level("low", True) == "medium"
+    assert final_level("medium", True) == "medium"
+    assert final_level("high", False) == "high"
+    assert final_level("none", False) == "none"
+    assert final_level("low", False) == "low"

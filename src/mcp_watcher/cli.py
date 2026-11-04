@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("scan", help="score extracted tools with the rule-based signals")
     p.add_argument("--tools", type=Path, default=Path("data/tools.jsonl"))
     p.add_argument("--out", type=Path, default=Path("data/findings.jsonl"))
-    p.add_argument("--model", type=Path, help="classifier file, e.g. models/watcher-lr-1.pkl")
+    p.add_argument("--model", type=Path, help="classifier file, e.g. models/watcher-lr-2.pkl")
     p.set_defaults(func=cmd_scan)
 
     p = sub.add_parser("pipeline", help="daily run with commit-based caching")
@@ -214,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=Path("out"))
     p.add_argument("--servers", type=Path, help="use this servers.jsonl instead of the registry")
     p.add_argument("--base-url", default=registry.DEFAULT_BASE_URL)
-    p.add_argument("--model", type=Path, help="classifier file, e.g. models/watcher-lr-1.pkl")
+    p.add_argument("--model", type=Path, help="classifier file, e.g. models/watcher-lr-2.pkl")
     p.add_argument("--cache", type=Path, default=Path(".cache/pipeline"))
     p.add_argument("--workers", type=int, default=16)
     p.add_argument("--limit", type=int, help="process only the first N servers by name")

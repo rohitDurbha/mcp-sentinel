@@ -29,7 +29,7 @@ SIGNAL_NAMES = (
     "hidden_block", "secrecy", "sensitive_path", "exfiltration", "override",
     "coercion", "cross_tool", "invisible_unicode", "long_text",
 )  # fmt: skip
-MODEL_VERSION = "watcher-lr-1"
+MODEL_VERSION = "watcher-lr-2"
 
 
 def rule_features(text: str) -> list[float]:

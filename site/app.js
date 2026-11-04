@@ -2,7 +2,7 @@
 
 const REPO = "https://github.com/rohitDurbha/mcp-watcher";
 const PER_PAGE = 15;
-const LEVEL_WORDS = { high: "High risk signal", medium: "Medium risk signal", cleared: "Cleared by review" };
+const LEVEL_WORDS = { high: "High risk signal", medium: "Medium risk signal", watch: "Classifier only, lower confidence", cleared: "Cleared by review" };
 const STATUS_WORDS = {
   ok: "Scanned successfully from its source code on the default branch.",
   no_supported_source: "Scanned, but no Python, TypeScript, JavaScript or Go source was found.",
@@ -65,7 +65,7 @@ const shownLevel = (f) => (f.dispute?.status === "cleared" ? "cleared" : f.level
 function levelTag(level) {
   return h("span", { class: `level ${level}` }, LEVEL_WORDS[level] || level);
 }
-const PILL_WORDS = { high: "High", medium: "Medium", cleared: "Cleared" };
+const PILL_WORDS = { high: "High", medium: "Medium", watch: "Classifier only", cleared: "Cleared" };
 const pill = (level) => h("span", { class: `level pill ${level}`, title: LEVEL_WORDS[level] }, PILL_WORDS[level] || level);
 const chevron = () => h("span", { class: "chev", "aria-hidden": "true" });
 
@@ -208,16 +208,16 @@ function pagedList(container, items, render, emptyText) {
 const SPECIMENS = 6;
 const SPECIMEN_CHARS = 520;
 
-// Four tools that both the rules and the classifier flagged, then two that only the classifier
-// caught, each from a different repository and short enough to read in a few seconds.
+// Four tools that both the rules and the classifier flagged, then two where the classifier lifted
+// weak rule evidence, each from a different repository and short enough to read in a few seconds.
 function specimenPool(flags) {
   const short = (f) => f.description && Array.from(f.description).length <= SPECIMEN_CHARS;
   const strongest = (a, b) => b.model.score - a.model.score || a.id.localeCompare(b.id);
   const seen = new Set();
   const take = (list, n) => list.filter((f) => !seen.has(f.repo_url) && seen.add(f.repo_url)).slice(0, n);
   const both = take(flags.filter((f) => f.level === "high" && f.model?.flag && spansFor(f, "description").length && short(f)).sort(strongest), 4);
-  const modelOnly = take(flags.filter((f) => !f.findings.length && f.model?.flag && short(f)).sort(strongest), SPECIMENS - both.length);
-  return [both[0], both[1], modelOnly[0], both[2], both[3], modelOnly[1]].filter(Boolean);
+  const lifted = take(flags.filter((f) => f.level === "medium" && f.rule_level === "low" && f.model?.flag && short(f)).sort(strongest), SPECIMENS - both.length);
+  return [both[0], both[1], lifted[0], both[2], both[3], lifted[1]].filter(Boolean);
 }
 
 function specimenSlide(f, i, total) {
@@ -307,7 +307,7 @@ const SIGNAL_NAMES = {
   exfiltration: "Sending data out", override: "Instruction override", long_text: "Unusually long text",
   cross_tool: "Steering other tools", coercion: "Pressure to act first", invisible_unicode: "Invisible characters",
 };
-const CAUGHT_NAMES = { both: "Rules and classifier", rules: "Rules only", model: "Classifier only" };
+const CAUGHT_NAMES = { both: "Rules and classifier", rules: "Rules only", lifted: "Classifier on weak rule evidence", model: "Classifier only" };
 const WHERE_NAMES = { description: "Description", param: "Parameters", both: "Description and parameters", none: "No rule match" };
 const OUTCOME_NAMES = {
   ok: "Scanned, tools found", no_supported_source: "No supported source code", no_repo: "No repository listed",
@@ -324,7 +324,7 @@ function traits(f) {
     level: f.level,
     signal: [...new Set(f.findings.map((x) => x.signal))],
     rule: [...new Set(f.findings.map((x) => x.rule))],
-    caught: rules && model ? "both" : rules ? "rules" : "model",
+    caught: rules && model ? "both" : rules ? "rules" : f.rule_level === "low" ? "lifted" : "model",
     where: fields.size === 2 ? "both" : fields.size ? [...fields][0] : "none",
     bin: Math.min(9, Math.floor((f.model?.score ?? 0) * 10)),
     repo: repoShort(f.repo_url),
@@ -336,7 +336,8 @@ function insights(flags, summary) {
   const ruleNames = new Map(flags.flatMap((f) => f.findings.map((x) => [x.rule, x.message])));
   const picked = {};
   const has = (t, dim, value) => (Array.isArray(t[dim]) ? t[dim].includes(value) : t[dim] === value);
-  const matching = (except) => items.filter(({ t }) =>
+  // The watch tier stays out of every chart until someone picks it with the level switch.
+  const matching = (except) => items.filter(({ t }) => (picked.level || t.level !== "watch") &&
     Object.entries(picked).every(([dim, value]) => dim === except || has(t, dim, value)));
   const pick = (dim, value) => {
     if (picked[dim] === value) delete picked[dim];
@@ -344,14 +345,18 @@ function insights(flags, summary) {
     update();
   };
 
+  const tipCounts = (r) => r.watch
+    ? `${num(r.total)} classifier only signals.`
+    : `${num(r.total)} tools, ${num(r.high)} high and ${num(r.medium)} medium.`;
+
   // One bar per row, stacked by level when the bars count flagged tools.
   const bars = (dim, rows, { stacked = true, clickable = true } = {}) => {
     const max = Math.max(1, ...rows.map((r) => r.total));
     return h("div", { class: `bars${dim in picked ? " has-pick" : ""}` }, rows.map((r) => {
       const fills = stacked
-        ? [["high", r.high], ["medium", r.medium]].filter(([, n]) => n).map(([lvl, n]) => h("span", { class: `fill ${lvl}`, style: `width:${(100 * n) / max}%` }))
+        ? [["high", r.high], ["medium", r.medium], ["watch", r.watch]].filter(([, n]) => n).map(([lvl, n]) => h("span", { class: `fill ${lvl}`, style: `width:${(100 * n) / max}%` }))
         : [h("span", { class: "fill", style: `width:${(100 * r.total) / max}%` })];
-      const tip = stacked ? `${r.label}. ${num(r.total)} tools, ${num(r.high)} high and ${num(r.medium)} medium.` : `${r.label}. ${num(r.total)} entries, ${r.share}.`;
+      const tip = stacked ? `${r.label}. ${tipCounts(r)}` : `${r.label}. ${num(r.total)} entries, ${r.share}.`;
       const kids = [h("span", { class: "bar-label" }, r.label), h("span", { class: "bar-value" }, stacked ? num(r.total) : `${num(r.total)}  ${r.share}`), h("span", { class: "bar-track" }, fills)];
       return clickable
         ? h("button", { type: "button", class: "bar", "data-tip": tip, "aria-pressed": String(picked[dim] === r.key), onclick: () => pick(dim, r.key) }, kids)
@@ -363,7 +368,8 @@ function insights(flags, summary) {
     return keys.map((key) => {
       const hits = pool.filter(({ t }) => has(t, dim, key));
       const high = hits.filter(({ t }) => t.level === "high").length;
-      return { key, label: label(key), total: hits.length, high, medium: hits.length - high };
+      const watch = hits.filter(({ t }) => t.level === "watch").length;
+      return { key, label: label(key), total: hits.length, high, watch, medium: hits.length - high - watch };
     });
   };
   const top = (dim, n, label) => {
@@ -385,12 +391,12 @@ function insights(flags, summary) {
     return h("div", {},
       h("div", { class: `hist${"bin" in picked ? " has-pick" : ""}` }, rows.map((r) => h("button", {
         type: "button", class: "col", "aria-pressed": String(picked.bin === r.key), "aria-label": `${r.label}, ${r.total} tools`,
-        "data-tip": `${r.label}. ${num(r.total)} tools, ${num(r.high)} high and ${num(r.medium)} medium.`, onclick: () => pick("bin", r.key),
-      }, [["high", r.high], ["medium", r.medium]].filter(([, n]) => n).map(([lvl, n]) => h("span", { class: `seg ${lvl}`, style: `height:${(100 * n) / max}%` }))))),
+        "data-tip": `${r.label}. ${tipCounts(r)}`, onclick: () => pick("bin", r.key),
+      }, [["high", r.high], ["medium", r.medium], ["watch", r.watch]].filter(([, n]) => n).map(([lvl, n]) => h("span", { class: `seg ${lvl}`, style: `height:${(100 * n) / max}%` }))))),
       h("div", { class: "hist-axis", "aria-hidden": "true" }, h("span", {}, "0"), h("span", {}, "0.5"), h("span", {}, "1")));
   };
 
-  const level = segmented("Insight level", [["", "All"], ["high", "High"], ["medium", "Medium"]], () => {
+  const level = segmented("Insight level", [["", "Flagged"], ["high", "High"], ["medium", "Medium"], ["watch", "Classifier only"]], () => {
     const v = level.value();
     if (v) picked.level = v;
     else delete picked.level;
@@ -408,7 +414,9 @@ function insights(flags, summary) {
   function update() {
     const shown = matching();
     chips.replaceChildren(
-      h("span", { class: "chips-count" }, `${num(shown.length)} of ${num(items.length)} flagged tools`),
+      h("span", { class: "chips-count" }, picked.level === "watch"
+        ? `${num(shown.length)} of ${num(items.filter(({ t }) => t.level === "watch").length)} classifier only signals`
+        : `${num(shown.length)} of ${num(items.filter(({ t }) => t.level !== "watch").length)} flagged tools`),
       ...Object.entries(picked).filter(([dim]) => dim !== "level").map(([dim, value]) =>
         h("button", { type: "button", class: "chip-x", "aria-label": `Remove filter ${LABELS[dim](value)}`, onclick: () => pick(dim, value) }, LABELS[dim](value), h("span", { "aria-hidden": "true" }, "×"))),
       Object.keys(picked).length ? h("button", { type: "button", class: "clear", onclick: () => {
@@ -420,7 +428,7 @@ function insights(flags, summary) {
     grid.replaceChildren(
       card("Signal family", bars("signal", count("signal", sortedKeys("signal"), LABELS.signal))),
       card("Most common rules", bars("rule", top("rule", 8, LABELS.rule))),
-      card("How it was caught", bars("caught", count("caught", ["both", "rules", "model"], LABELS.caught))),
+      card("How it was caught", bars("caught", count("caught", ["both", "rules", "lifted", "model"], LABELS.caught))),
       card("Where the evidence sits", bars("where", count("where", sortedKeys("where"), LABELS.where))),
       card("Classifier score", histogram()),
       card("Repositories with the most flags", bars("repo", top("repo", 8, LABELS.repo))),
@@ -545,7 +553,8 @@ function lineChart({ title, series, format = num }) {
 
 async function viewHome(main) {
   const [flags, summary, history] = await Promise.all([load("flags"), load("summary"), load("history")]);
-  const counted = flags.filter((f) => shownLevel(f) !== "cleared");
+  const open = flags.filter((f) => shownLevel(f) !== "cleared");
+  const counted = open.filter((f) => f.level !== "watch");
   const highs = counted.filter((f) => f.level === "high").length;
   const pool = specimenPool(counted);
 
@@ -567,16 +576,16 @@ async function viewHome(main) {
     h("p", { class: "muted" }, "Each flag is an automated risk signal that deserves a human look. Many are harmless phrasing or security demos, and authors can dispute any result."));
   const signals = [...new Set(flags.flatMap((f) => f.findings.map((x) => x.signal)))].sort();
   const q = h("input", { type: "search", placeholder: "Tool, repository or phrase", "aria-label": "Filter flagged tools" });
-  const lvl = segmented("Level", [["", "All"], ["high", "High"], ["medium", "Medium"], ["cleared", "Cleared"]], () => apply());
+  const lvl = segmented("Level", [["", "Flagged"], ["high", "High"], ["medium", "Medium"], ["watch", "Classifier only"], ["cleared", "Cleared"]], () => apply());
   const sig = h("select", { "aria-label": "Signal" }, h("option", { value: "" }, "All signals"),
     ...signals.map((s) => h("option", { value: s }, s.replaceAll("_", " "))), h("option", { value: "model" }, "classifier only"));
   const list = h("div", { class: "results" });
-  const order = { high: 0, medium: 1, cleared: 2 };
+  const order = { high: 0, medium: 1, watch: 2, cleared: 3 };
   const sorted = [...flags].sort((a, b) => order[shownLevel(a)] - order[shownLevel(b)] || b.rule_score - a.rule_score || a.name.localeCompare(b.name));
   const apply = () => {
     const needle = q.value.trim().toLowerCase();
     const hits = sorted.filter((f) =>
-      (!lvl.value() || shownLevel(f) === lvl.value()) &&
+      (lvl.value() ? shownLevel(f) === lvl.value() : ["high", "medium"].includes(shownLevel(f))) &&
       (!sig.value || (sig.value === "model" ? !f.findings.length : f.findings.some((x) => x.signal === sig.value))) &&
       (!needle || `${f.name} ${f.repo_url} ${f.description}`.toLowerCase().includes(needle)));
     pagedList(list, hits, flagRow, "No flagged tool matches these filters. Try a broader phrase or another level.");
@@ -586,7 +595,7 @@ async function viewHome(main) {
   apply();
 
   const runs = history.map((r) => r.generated_at);
-  main.append(insights(counted, summary));
+  main.append(insights(open, summary));
   main.append(h("h2", {}, "Over time"), h("div", { class: "charts" },
     lineChart({
       title: "Distinct flagged tools by level",
@@ -673,6 +682,9 @@ async function viewFlag(main, id) {
     h("h1", { class: "tool" }, f.name),
     h("p", { class: "muted" }, "This is an automated risk signal about the text below. It does not say anything about the intent of the server or its author."),
   );
+  if (level === "watch") {
+    main.append(h("div", { class: "note" }, h("p", {}, "Only the classifier reacted to this text, and no rule found supporting evidence. Signals like this one are kept for review and are not counted as flags, because most of them turned out to be harmless in a review of live data.")));
+  }
   if (f.dispute) {
     main.append(h("div", { class: "note" }, h("p", {}, DISPUTE_WORDS[f.dispute.status], f.dispute.note ? ` ${f.dispute.note}` : "",
       f.dispute.issue ? [" ", h("a", { href: f.dispute.issue }, "Read the discussion.")] : "")));
@@ -696,7 +708,7 @@ async function viewFlag(main, id) {
   if (m) {
     const terms = (m.top_terms || []).map((t) => t[0]).join(", ");
     reasons.append(h("li", {}, m.flag
-      ? [h("b", {}, "The classifier flagged this text too"), `. Its score was ${m.score}, and the words that pushed it highest were ${terms || "not recorded"}.`]
+      ? [h("b", {}, f.findings.length ? "The classifier flagged this text too" : "The classifier flagged this text"), `. Its score was ${m.score}, and the words that pushed it highest were ${terms || "not recorded"}.`]
       : `The classifier scored this text ${m.score}, which is below its threshold, so the level comes from the rules alone.`));
   }
   main.append(reasons,
@@ -718,7 +730,8 @@ function viewMethod(main) {
     h("h2", {}, "What the levels mean"),
     h("ul", { class: "reasons" },
       h("li", {}, levelTag("high"), " means a strong rule matched, such as a request to hide an action from the user or to read a private key."),
-      h("li", {}, levelTag("medium"), " means a weaker rule matched, or the classifier flagged text that the rules scored lower."),
+      h("li", {}, levelTag("medium"), " means a weaker rule matched, or the classifier flagged text that a rule also noticed."),
+      h("li", {}, levelTag("watch"), " means only the classifier reacted. These are listed for review but never counted as flags."),
     ),
     p("A flag is a reason to read the text closely. Many flagged tools are security demos, test fixtures or harmless sentences that happen to match a pattern, and no flag claims that anyone acted in bad faith."),
     h("h2", {}, "Disputes"),

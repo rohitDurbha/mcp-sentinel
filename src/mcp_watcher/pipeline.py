@@ -31,6 +31,7 @@ from .scoring import score_tools, tool_from_row
 # Bump whenever a change to extraction could change its output, so cached repos rescan.
 EXTRACTOR_VERSION = "2"
 FLAGGED = ("medium", "high")
+PUBLISHED = ("watch", *FLAGGED)  # the watch tier is shown for review but never counted
 PROGRESS_EVERY = 100
 LARGEST_REPOS = 25
 SLOW_REPO_SECONDS = 60
@@ -106,7 +107,7 @@ def _flag_ids(findings: list[dict]) -> set[str]:
 def _flagged(tools: list[Tool], findings: list[dict]) -> Iterable[dict]:
     """Flagged findings with the text they were found in, small enough to publish."""
     for tool, record in zip(tools, findings, strict=True):
-        if record["level"] in FLAGGED:
+        if record["level"] in PUBLISHED:
             text = {"description": tool.description, "params": tool.to_dict()["params"]}
             yield record | text
 
@@ -324,8 +325,8 @@ def run_pipeline(
         "tools": len(all_tools),
         "tools_unique": sum(len(v["tools"]) for v in per_repo.values()),
         "resolved_share": _share(all_tools),
-        "levels": {k: levels[k] for k in ("high", "medium", "low", "none")},
-        "flagged_unique": {k: unique_levels[k] for k in FLAGGED[::-1]},
+        "levels": {k: levels[k] for k in ("high", "medium", "watch", "low", "none")},
+        "flagged_unique": {k: unique_levels[k] for k in ("high", "medium", "watch")},
         "new_flags": sorted(now_flags - then_flags) if prev_dir else [],
         "cleared_flags": sorted(then_flags - now_flags) if prev_dir else [],
         "largest_repos": largest,

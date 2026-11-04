@@ -36,3 +36,21 @@ The thirty-one low results are almost all long descriptions, plus a few prerequi
 This benchmark contains only a handful of real attacks, so these numbers show that the rules stay quiet on ordinary tools. They cannot yet measure recall on attacks that nobody has published. Phase 3 adds labeled attack data and paraphrased variants to measure recall properly, and the full registry crawl in Phase 4 will give a far larger sample for precision.
 
 Rules also cannot see a description that changes while the server runs, which is how the WhatsApp takeover demonstration works. Detecting that needs a code-level check for descriptions rewritten after startup, which is planned for a later phase.
+
+## Phase 6 changes from live registry flags
+
+The benchmark above holds only forty repositories, so Phase 6 reviewed 100 flags from the full registry run in `datasets/registry_review_a.json`. Most rule false alarms followed a handful of patterns, and each rule below was narrowed with a regression test that quotes the real text, next to tests that pin the attacks the rule must still catch.
+
+| Rule | What changed | Real example that no longer fires |
+|---|---|---|
+| `send-to-destination` | Ignores sentences that send the person somewhere | "send the user to https://tempos.min-saude.pt" |
+| `hide-from-user` | Ignores conditional guidance and requests to tell the user to act | "NEVER tell the user the domain is bought or live until check_domain confirms it" |
+| `without-telling` | Ignores negated sentences | "never publish without asking the user" |
+| `tag-block` | Ignores documentation sections beside `<usecase>`, enum syntax with a bar, and a bare `<secret>` placeholder | "`<usecase>` ... `<instructions>` Searches names `</instructions>`" |
+| `html-comment` | Ignores comments of four words or fewer | "`<!-- ds:block:N -->`" |
+| `mcp-tool-prefix` | Matches only lower case client identifiers | "{MCP_TOOL_COPY.search_classes.description}" |
+| `agent-config` | Moved to low severity, since agent tooling names these files routinely | "Writes the team rules into .cursor/rules and registers the server in mcp.json" |
+| Sensitive paths | Ignore a path that directly follows a refusal with no action verb between | "Refuses hidden files and folders (dotfiles such as .env or .ssh)" |
+
+On the 100 reviewed flags these changes kept every concern and every demo at the same rule level, and they moved 45 false alarms from medium or high down to low or none. The forty benchmark repositories and the attack repositories produced identical rule levels before and after the change.
+

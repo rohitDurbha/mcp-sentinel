@@ -3,7 +3,7 @@
 Usage:
     python research/train_eval.py --tools data/bench_tools.jsonl data/attack_tools.jsonl
 
-Writes docs/results/phase3.json and models/watcher-lr-1.pkl. Every random choice is
+Writes docs/results/phase6.json and models/watcher-lr-2.pkl. Every random choice is
 seeded, so the numbers in the model card can be reproduced exactly.
 """
 
@@ -109,8 +109,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tools", nargs="+", type=Path, required=True)
     ap.add_argument("--labels", type=Path, default=Path("datasets/labels.json"))
-    ap.add_argument("--out", type=Path, default=Path("docs/results/phase3.json"))
-    ap.add_argument("--model", type=Path, default=Path("models/watcher-lr-1.pkl"))
+    ap.add_argument("--out", type=Path, default=Path("docs/results/phase6.json"))
+    ap.add_argument("--model", type=Path, default=Path("models/watcher-lr-2.pkl"))
     args = ap.parse_args()
 
     rows, dropped = real_rows(args.tools, load_labels(args.labels))
@@ -174,6 +174,15 @@ def main() -> None:
     policy["missed_keys"] = [test[i].key for i in np.where((flags < 0.5) & (y == 1))[0]]
     policy["false_positive_keys"] = [test[i].key for i in np.where((flags > 0.5) & (y == 0))[0]]
     e1["policy_rules_or_model"] = policy
+    # Phase 6 policy: the model lifts a tool only when a rule found at least low evidence. It was
+    # chosen on registry review sample A, a development set of live flags, and both policies are
+    # reported so the cost in recall on real attacks is visible.
+    backed = ((rs >= RULE_THRESHOLD) | ((combined_scores >= combined_thr) & (rs > 0))).astype(float)
+    strict = {**metrics(backed, y, 0.5), **bootstrap(backed, y, groups, 0.5)}
+    strict.pop("pr_auc"), strict.pop("pr_auc_95")
+    strict["missed_keys"] = [test[i].key for i in np.where((backed < 0.5) & (y == 1))[0]]
+    strict["false_positive_keys"] = [test[i].key for i in np.where((backed > 0.5) & (y == 0))[0]]
+    e1["policy_model_needs_rule_evidence"] = strict
     results["real_world"] = e1
 
     # Experiment 2. Leave one attack family out, test on that family over unseen repositories.
@@ -200,11 +209,15 @@ def main() -> None:
         m = WatcherModel(**variant).fit([text_of(r) for r in train], [r.label for r in train])
         ms = m.decision(texts)
         row["combined"] = metrics(ms, y2, thr)
-        either = ((rule_scores(texts) >= RULE_THRESHOLD) | (ms >= thr)).astype(float)
+        rs2 = rule_scores(texts)
+        either = ((rs2 >= RULE_THRESHOLD) | (ms >= thr)).astype(float)
         row["policy_rules_or_model"] = metrics(either, y2, 0.5)
         row["policy_rules_or_model"].pop("pr_auc")
+        backed2 = ((rs2 >= RULE_THRESHOLD) | ((ms >= thr) & (rs2 > 0))).astype(float)
+        row["policy_model_needs_rule_evidence"] = metrics(backed2, y2, 0.5)
+        row["policy_model_needs_rule_evidence"].pop("pr_auc")
         e2[held] = row
-        print(f"  held out {held:<24} rules {row['rules']['recall']:.2f}  model {row['combined']['recall']:.2f}  either {row['policy_rules_or_model']['recall']:.2f}  fpr {row['policy_rules_or_model']['fpr']:.3f}")  # fmt: skip
+        print(f"  held out {held:<24} rules {row['rules']['recall']:.2f}  model {row['combined']['recall']:.2f}  either {row['policy_rules_or_model']['recall']:.2f}  fpr {row['policy_rules_or_model']['fpr']:.3f}  backed {row['policy_model_needs_rule_evidence']['recall']:.2f}  fpr {row['policy_model_needs_rule_evidence']['fpr']:.3f}")  # fmt: skip
     results["unseen_families"] = e2
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -216,6 +229,10 @@ def main() -> None:
     p = e1["policy_rules_or_model"]
     print(
         f"policy     recall {p['recall']} {p['recall_95']}  FP {p['false_positives']}/{p['negatives']}  missed {p['missed_keys']}"
+    )
+    b = e1["policy_model_needs_rule_evidence"]
+    print(
+        f"backed     recall {b['recall']} {b['recall_95']}  FP {b['false_positives']}/{b['negatives']}  missed {b['missed_keys']}"
     )
     print("rules missed:", e1["rules_missed_keys"])
     print("combined recall on rule misses:", e1["combined"]["recall_on_rule_misses"])

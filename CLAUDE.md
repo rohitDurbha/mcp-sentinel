@@ -13,9 +13,9 @@ ruff check . && ruff format --check .     # lint and format check
 mcp-watcher discover --out data/servers.jsonl      # pull server list from the official registry
 mcp-watcher extract --servers data/servers.jsonl --out data/tools.jsonl
 mcp-watcher extract --repo https://github.com/OWNER/REPO --out data/tools.jsonl
-mcp-watcher scan --tools data/tools.jsonl --out data/findings.jsonl --model models/watcher-lr-1.pkl
+mcp-watcher scan --tools data/tools.jsonl --out data/findings.jsonl --model models/watcher-lr-2.pkl
 python research/train_eval.py --tools data/bench_tools.jsonl data/attack_tools.jsonl   # retrain and re-evaluate
-mcp-watcher pipeline --previous previous --out out --model models/watcher-lr-1.pkl  # the daily run
+mcp-watcher pipeline --previous previous --out out --model models/watcher-lr-2.pkl  # the daily run
 mcp-watcher site --data public --out _site   # build the site from a checkout of the data branch
 ```
 

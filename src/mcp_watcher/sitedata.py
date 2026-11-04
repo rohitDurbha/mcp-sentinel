@@ -10,7 +10,7 @@ from typing import Any
 
 from .pipeline import read_gz_jsonl
 
-LEVELS = ("none", "low", "medium", "high")
+LEVELS = ("none", "low", "watch", "medium", "high")
 DISPUTE_STATUSES = ("open", "confirmed", "cleared")
 COLUMNS = (
     "name",
@@ -70,7 +70,7 @@ def _counts(flags: list[dict]) -> dict[str, tuple[int, str]]:
     """Flag count and highest level per server, leaving out flags cleared by review."""
     out: dict[str, tuple[int, str]] = {}
     for flag in flags:
-        if flag.get("dispute", {}).get("status") == "cleared":
+        if flag.get("dispute", {}).get("status") == "cleared" or flag["level"] == "watch":
             continue
         for name in flag["servers"]:
             count, top = out.get(name, (0, "none"))

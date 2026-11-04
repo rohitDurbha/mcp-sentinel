@@ -51,7 +51,7 @@ def _r(id_: str, signal: str, severity: str, pattern: str, message: str, flags=_
 RULES: tuple[Rule, ...] = (
     # Text wrapped so a model treats it as privileged, or hidden from rendered views.
     _r("tag-block", "hidden_block", "medium",
-       r"<\s*/?\s*(important|system|instructions?|hidden|secret|admin|override)\b[^>]{0,40}>",
+       r"<\s*/?\s*(important|system|instructions?|hidden|secret|admin|override)\b[^>|]{0,40}>",
        "Instruction tag aimed at the model"),
     _r("html-comment", "hidden_block", "medium", r"<!--.{0,2000}?-->",
        "HTML comment that renders invisibly", _IS),
@@ -79,7 +79,8 @@ RULES: tuple[Rule, ...] = (
     # Files that hold credentials or agent configuration.
     _r("ssh-keys", "sensitive_path", "medium", r"\.ssh\b|\bid_(rsa|ed25519|ecdsa|dsa)\b",
        "Mentions SSH keys"),
-    _r("agent-config", "sensitive_path", "medium",
+    # Common in the docs of agent tooling, so it only counts alongside other signals.
+    _r("agent-config", "sensitive_path", "low",
        r"\bmcp\.json\b|\.cursor/|claude_desktop_config\.json",
        "Mentions agent or MCP client configuration"),
     _r("credential-files", "sensitive_path", "medium",
@@ -95,7 +96,8 @@ RULES: tuple[Rule, ...] = (
        r"(as|in|into|to)\b",
        "Asks the model to smuggle content through a parameter"),
     _r("send-to-destination", "exfiltration", "high",
-       r"\b(send|forward|post|upload|email|copy)\s+(all|every|the|any|its|their)\b[^.\n]{0,60}"
+       r"\b(send|forward|post|upload|email|copy)\s+(all|every|the|any|its|their)\b"
+       r"(?!\s+(user|users|customer|customers|person|people|reader)\b)[^.\n]{0,60}"
        r"\bto\s+(\S+@\S+|https?://)",
        "Asks the model to send data to a fixed destination"),
     _r("capture-endpoint", "exfiltration", "high",
@@ -128,8 +130,8 @@ RULES: tuple[Rule, ...] = (
     _r("other-tool-must", "cross_tool", "medium",
        r"\b[\w-]+\s+tool\s+(must|should)\s+(always\s+)?(send|use|call|include|forward|add)\b",
        "Dictates how another tool must behave"),
-    _r("mcp-tool-prefix", "cross_tool", "medium", r"\bmcp_tool_\w+",
-       "Names another tool by its client-side identifier"),
+    _r("mcp-tool-prefix", "cross_tool", "medium", r"\bmcp_tool_[a-z0-9_]+",
+       "Names another tool by its client-side identifier", 0),
     _r("instead-of-tool", "cross_tool", "low",
        r"\binstead\s+of\s+(using\s+|calling\s+)?(the\s+)?[\w-]+\s+tool\b",
        "Steers the model away from another tool"),
@@ -186,12 +188,60 @@ def _invisible(text: str, field: str) -> list[Finding]:
     return out
 
 
+# Context checks found by reviewing real registry flags (datasets/registry_review_a.json). Each
+# one removes a pattern of harmless text, and tests/test_signals.py pins attacks that must stay.
+_BOUNDARY = re.compile(r"[.!?;](?=\s|$)|\n")
+_REFUSAL = re.compile(
+    r"\b(never|not|no|refuses?|refused|rejects?|rejected|skips?|skipped|excludes?|excluding|"
+    r"except|without|blocks?|blocked|denies|denied)\b",
+    _I,
+)
+_ACTION = re.compile(
+    r"\b(read|reads|send|sends|cat|open|opens|load|loads|include|includes|upload|uploads|copy|"
+    r"copies|fetch|access|accesses|get|forward|exfiltrate)\b",
+    _I,
+)
+_NEGATION = re.compile(r"\b(never|not|no)\b|n't\b", _I)
+_CONDITION = re.compile(r"\b(until|unless|before|without)\b", _I)
+_DOC_SECTIONS = re.compile(r"<\s*/?\s*(usecase|examples?)\b", _I)
+
+
+def _sentence(text: str, start: int, end: int) -> tuple[str, str]:
+    """The text from the sentence start to ``start``, and from ``end`` to the sentence end."""
+    before = [m.end() for m in _BOUNDARY.finditer(text, 0, start)]
+    after = _BOUNDARY.search(text, end)
+    stop = after.start() if after else len(text)
+    return text[before[-1] if before else 0 : start], text[end:stop]
+
+
+def _harmless(rule: Rule, text: str, m: re.Match) -> bool:
+    head, tail = _sentence(text, m.start(), m.end())
+    if rule.id == "hide-from-user":
+        # "do not tell the user to reconnect", "never tell the user it is live until it is"
+        return bool(re.match(r"\s+to\b", tail) or _CONDITION.search(m.group(0) + tail))
+    if rule.id == "without-telling":
+        return bool(_NEGATION.search(head))  # "never publish without asking the user"
+    if rule.id == "tag-block":
+        name = m.group(1).lower()
+        if name in ("instructions", "instruction", "important") and _DOC_SECTIONS.search(text):
+            return True  # <usecase> <instructions> <examples> used as documentation sections
+        return name == "secret" and not re.search(r"<\s*/\s*secret\s*>", text, _I)
+    if rule.id == "html-comment":
+        return len(m.group(0)[4:-3].split()) <= 4  # short markers such as <!-- Page N -->
+    if rule.signal == "sensitive_path":
+        cue = list(_REFUSAL.finditer(head))
+        return bool(cue) and not _ACTION.search(head[cue[-1].end() :])
+    return False
+
+
 def scan_text(text: str, field: str) -> list[Finding]:
     """Run every rule over one piece of text. Findings are sorted by position."""
     findings: list[Finding] = []
     for rule in RULES:
         for m in rule.pattern.finditer(text):
             if rule.id == "email-address" and _EXAMPLE_DOMAINS.search(m.group(0)):
+                continue
+            if _harmless(rule, text, m):
                 continue
             findings.append(
                 Finding(
