@@ -1,0 +1,169 @@
+{
+  "cleared_flags": [],
+  "extractor_version": "2",
+  "flagged_unique": {
+    "high": 138,
+    "medium": 237,
+    "watch": 131
+  },
+  "generated_at": "2026-11-06T18:03:55Z",
+  "jobs": {
+    "clone_failed": 6,
+    "no_repo": 19860,
+    "no_supported_source": 8391,
+    "ok": 24457,
+    "stale": 101,
+    "unreachable": 4907
+  },
+  "jobs_reused": 28314,
+  "largest_repos": [
+    {
+      "repo_url": "https://github.com/nirholas/universal-crypto-mcp",
+      "servers": 1,
+      "tools": 5543
+    },
+    {
+      "repo_url": "https://github.com/mrfentmen/awesome-mcps",
+      "servers": 188,
+      "tools": 5394
+    },
+    {
+      "repo_url": "https://github.com/mrfentmen/awesome-servers",
+      "servers": 202,
+      "tools": 5394
+    },
+    {
+      "repo_url": "https://github.com/malamutemayhem/unclick-agent-native-endpoints",
+      "servers": 1,
+      "tools": 3667
+    },
+    {
+      "repo_url": "https://github.com/mcparmory/registry",
+      "servers": 76,
+      "tools": 3026
+    },
+    {
+      "repo_url": "https://github.com/codespar/mcp-dev-latam",
+      "servers": 127,
+      "tools": 2499
+    },
+    {
+      "repo_url": "https://github.com/royazran/mcp-ads",
+      "servers": 1,
+      "tools": 2380
+    },
+    {
+      "repo_url": "https://github.com/leocelis/stele",
+      "servers": 1,
+      "tools": 2003
+    },
+    {
+      "repo_url": "https://github.com/nirholas/sperax-crypto-mcp",
+      "servers": 1,
+      "tools": 1997
+    },
+    {
+      "repo_url": "https://github.com/klavis-ai/klavis",
+      "servers": 1,
+      "tools": 1725
+    },
+    {
+      "repo_url": "https://github.com/shakaran/symfony-agent-mcp",
+      "servers": 1,
+      "tools": 1702
+    },
+    {
+      "repo_url": "https://github.com/servosity/msp-skills",
+      "servers": 104,
+      "tools": 1521
+    },
+    {
+      "repo_url": "https://github.com/zachshallbetter/adobe-mcp",
+      "servers": 6,
+      "tools": 1196
+    },
+    {
+      "repo_url": "https://github.com/zachshallbetter/indesign-mcp-server",
+      "servers": 1,
+      "tools": 1196
+    },
+    {
+      "repo_url": "https://github.com/patsa2561-art/mneme-ai",
+      "servers": 1,
+      "tools": 1075
+    },
+    {
+      "repo_url": "https://github.com/ruvnet/claude-flow",
+      "servers": 1,
+      "tools": 1040
+    },
+    {
+      "repo_url": "https://github.com/mindstone/mcp-servers",
+      "servers": 40,
+      "tools": 1026
+    },
+    {
+      "repo_url": "https://github.com/aartiq/servicenow-mcp",
+      "servers": 3,
+      "tools": 999
+    },
+    {
+      "repo_url": "https://github.com/hostinger/api-mcp-server",
+      "servers": 1,
+      "tools": 938
+    },
+    {
+      "repo_url": "https://github.com/nirholas/three.ws",
+      "servers": 51,
+      "tools": 849
+    },
+    {
+      "repo_url": "https://github.com/swkstudios/unifi-fabric-mcp-server",
+      "servers": 1,
+      "tools": 710
+    },
+    {
+      "repo_url": "https://github.com/homenshum/nodebench-ai",
+      "servers": 1,
+      "tools": 625
+    },
+    {
+      "repo_url": "https://github.com/akoskomuves/appstoreconnect-mcp",
+      "servers": 1,
+      "tools": 620
+    },
+    {
+      "repo_url": "https://github.com/dearlordylord/huly-mcp",
+      "servers": 1,
+      "tools": 613
+    },
+    {
+      "repo_url": "https://github.com/2s-io/sdk",
+      "servers": 1,
+      "tools": 575
+    }
+  ],
+  "levels": {
+    "high": 156,
+    "low": 1236,
+    "medium": 262,
+    "none": 2708107,
+    "watch": 143
+  },
+  "model_version": "watcher-lr-2",
+  "new_flags": [
+    "ai.provian/mcp|provian-mcp/src/core/tools.ts|sign_output",
+    "io.github.DMontgomery40/bambu-printer-mcp|src/index.ts|fusion_mcp_setup",
+    "io.github.mickey-ichi/backlog-bridge|src/mcp.ts|create_data_folder",
+    "io.github.puglieseweb/systemdox|src/tools/team-setup.ts|publish_setup_part",
+    "io.github.usama-saeed831/plesk-deploy-mcp|src/tools/server-discover.ts|server_discover",
+    "io.github.usama-saeed831/plesk-deploy-mcp|src/tools/server-discovery-commands.ts|server_discovery_commands"
+  ],
+  "repos_checked": 30452,
+  "repos_cloned": 2602,
+  "resolved_share": 0.9926,
+  "servers": 57722,
+  "servers_with_repo": 37862,
+  "tools": 2709904,
+  "tools_unique": 323000
+}
